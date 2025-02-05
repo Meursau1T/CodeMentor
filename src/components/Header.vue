@@ -1,3 +1,14 @@
+<script setup>
+import { ref } from 'vue';
+import { useUserInfoStore } from '../stores/userInfo'
+
+const activeValue = ref('main');
+const userStore = useUserInfoStore();
+
+// userStore.setUserInfo({ name: 'wxf', avatar: 'URL_ADDRESS'});
+
+</script>
+
 <template>
     <t-head-menu class="header" v-model="activeValue" theme="light">
         <template #logo>
@@ -6,17 +17,11 @@
         <t-menu-item value="main" to="/" active="true"> 首页 </t-menu-item>
         <t-menu-item value="course" to="/course"> 课程 </t-menu-item>
         <t-menu-item value="question" to="/question"> 题库 </t-menu-item>
-        <t-avatar class="user-avatar" :icon="icon" />
+        <t-avatar class="user-avatar" v-if="userStore.isLogin()"> {{ userStore.userInfo.name }} </t-avatar>
+        <t-avatar class="user-avatar" v-else > 登录 </t-avatar>
     </t-head-menu>
 </template>
 
-
-<script setup>
-import { ref } from 'vue';
-
-const activeValue = ref('main');
-
-</script>
 
 <style scoped>
 .header {
