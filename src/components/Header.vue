@@ -1,7 +1,7 @@
 <template>
     <t-head-menu class="header" v-model="activeValue" theme="light">
         <template #logo>
-            <img class="logo" height="28" src="https://tdesign.gtimg.com/site/baseLogo-light.png" alt="logo" />
+            <img class="logo" height="28" src="https://lf3-static.bytednsdoc.com/obj/eden-cn/medeh7bmupenuhd/szu.png" alt="logo" />
         </template>
         <t-menu-item value="main" to="/" active="true"> 首页 </t-menu-item>
         <t-menu-item value="course" to="/course"> 课程 </t-menu-item>
@@ -87,6 +87,6 @@ const activeValue = ref('main');
 }
 
 .logo {
-    width: 137px;
+    width: 116px;
 }
 </style>
