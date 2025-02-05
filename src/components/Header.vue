@@ -26,6 +26,8 @@ const activeValue = ref('main');
     justify-content: space-between;
     padding: 10px 20px;
     background-color: #ffffff;
+
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .menu-item {
@@ -40,11 +42,19 @@ const activeValue = ref('main');
 
 .header /deep/ .t-head-menu__inner {
     flex-grow: 1;
+    height: var(--td-comp-size-xxl)
 }
 
 .header .t-menu__item {
     color: #A6A6A6;
     width: 70px;
+    font-size: medium;
+    height: var(--td-comp-size-xxl)
+}
+
+/** 关闭点击时的背景色 */
+.header /deep/ .t-menu__item div {
+    display: none !important;
 }
 
 .header .t-menu__item.t-is-active {
@@ -58,7 +68,7 @@ const activeValue = ref('main');
         width: 100%;
         height: 2px;
         background-color: #2A82E4;
-        margin-top: 30px;
+        margin-top: 68px;
         transition: opacity 0.3s ease;
     }
 }
