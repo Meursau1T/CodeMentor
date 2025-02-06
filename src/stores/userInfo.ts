@@ -5,12 +5,14 @@ export interface UserInfo {
   name: string;
   id: string;
   avatar?: string;
-  email?: string;
-  phone?: string;
-  school?: string;
-  major?: string;
-  grade?: string;
-  class?: string;
+  learningStatus: {
+    /** 知识点学习 */
+    knowledge?: number;
+    /** 题目练习 */
+    exercise?: number;
+    /** 笔记记录 */
+    note?: number;
+  };
 }
 
 export const useUserInfoStore = defineStore('user', () => {
