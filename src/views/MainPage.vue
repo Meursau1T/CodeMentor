@@ -6,11 +6,20 @@ const userStore = useUserInfoStore();
 
 <template>
   <div class="container">
-    <div class="left-card">
+    <div class="left-card" :class="{ 'full-width': !userStore.isLogin() }">
+      <h1 class="title">Empower Your Coding Journey with AI</h1>
+      <div class="intro-card">
+        <div>
+          <span class="intro-text">从掌握基础到解决高难度问题，CodeMentor AI 将为每个学者提供</span>
+          <span class="intro-text-bold">个性化学习计划、智能问答和实时错误分析</span>
+          <span class="intro-text">，助力你的编程目标。</span>
+        </div>
+        <p class="cta-text">加入我们，让你的编程技能更上一层楼！</p>
+      </div>
     </div>
     
-    <div class="right-section">
-      <template v-if="userStore.isLogin()">
+    <div class="right-section" v-if="userStore.isLogin()">
+      <template>
         <div class="user-info">
           <t-avatar size="large">{{ userStore.userInfo.name }}</t-avatar>
           <span class="username">{{ userStore.userInfo.name }}</span>
@@ -31,11 +40,6 @@ const userStore = useUserInfoStore();
           <span class="data-value">{{ userStore.userInfo.learningStatus?.note || 0 }}</span>
         </div>
       </template>
-      <template v-else>
-        <div class="user-info">
-          <span class="username">请先登录</span>
-        </div>
-      </template>
     </div>
   </div>
 </template>
@@ -44,20 +48,26 @@ const userStore = useUserInfoStore();
 .container {
   display: flex;
   width: 100%;
+  padding: 72px;
 }
 
 .left-card {
-  margin-left: 72px;
-  margin-top: 72px;
   flex: 1;
   height: 620px;
   background-color: white;
   box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.1);
+  padding: 32px;
+  margin-right: 36px;
+  display: flex;
+  flex-direction: column;
+}
+
+.left-card.full-width {
+  margin-right: 0;
+  width: 100%;
 }
 
 .right-section {
-  margin-right: 72px;
-  margin-top: 72px;
   width: 350px;
   margin-left: 24px;
 }
@@ -90,4 +100,37 @@ const userStore = useUserInfoStore();
   color: #333;
   font-size: 14px;
 }
+
+.title {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 36px;
+}
+
+.intro-card {
+  background: white;
+  box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-grow: 1;
+}
+
+.intro-text {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+}
+
+.intro-text-bold {
+  font-weight: bold;
+}
+
+.cta-text {
+  color: #ff0000;
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 24px;
+    }
 </style>
