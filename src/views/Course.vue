@@ -64,6 +64,28 @@ const courseObj = [
     ]
   }
 ]
+const statsList = [
+  {
+    icon: 'chart',
+    title: '准确率',
+    value: '85%'
+  },
+  {
+    icon: 'error',
+    title: '错题',
+    value: '12'
+  },
+  {
+    icon: 'star',
+    title: '收藏',
+    value: '8'
+  },
+  {
+    icon: 'edit',
+    title: '笔记',
+    value: '5'
+  }
+]
 </script>
 
 <template>
@@ -96,6 +118,19 @@ const courseObj = [
         <t-divider style="margin: 8px 0"></t-divider>
       </div>
       <div class="bottom-card">
+        <t-list>
+          <t-list-item class="list-item" v-for="item in statsList" :key="item.title">
+            <template #content>
+              <span class="stats-item">
+                <t-icon :name="item.icon" size="20px" style="color: #0052d9"/>
+                <span>{{ item.title }}</span>
+              </span>
+            </template>
+            <template #action>
+              <span style="color: #0052d9; font-weight: 500">{{ item.value }}</span>
+            </template>
+          </t-list-item>
+        </t-list>
       </div>
     </div>
   </main>
@@ -126,7 +161,6 @@ const courseObj = [
 
 .bottom-card {
   margin-top: 24px;
-  height: 300px;
   background: white;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   padding: 24px;
@@ -152,4 +186,19 @@ const courseObj = [
   cursor: pointer;
   color: #a6a6a6;
 }
+
+.list-item {
+  padding: 0;
+}
+
+.stats-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.stats-item span {
+  margin-left: 12px;
+}
+
 </style>
