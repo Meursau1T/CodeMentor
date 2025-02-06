@@ -20,27 +20,25 @@ const userStore = useUserInfoStore();
     </div>
     
     <div class="right-section" v-if="userStore.isLogin()">
-      <template>
-        <div class="user-info">
-          <t-avatar size="large">{{ userStore.userInfo.name }}</t-avatar>
-          <span class="username">{{ userStore.userInfo.name }}</span>
-        </div>
-        
-        <div class="data-item">
-          <span class="data-label">知识点学习</span>
-          <t-progress :percentage="userStore.userInfo.learningStatus?.knowledge || 0" />
-        </div>
-        
-        <div class="data-item">
-          <span class="data-label">题目练习</span>
-          <span class="data-value">{{ userStore.userInfo.learningStatus?.exercise || 0 }}</span>
-        </div>
-        
-        <div class="data-item">
-          <span class="data-label">笔记记录</span>
-          <span class="data-value">{{ userStore.userInfo.learningStatus?.note || 0 }}</span>
-        </div>
-      </template>
+      <div class="user-info">
+        <t-avatar size="large">{{ userStore.userInfo.name }}</t-avatar>
+        <span class="username">{{ userStore.userInfo.name }}</span>
+      </div>
+      
+      <div class="data-item">
+        <span class="data-label">知识点学习</span>
+        <t-progress :percentage="userStore.userInfo.learningStatus?.knowledge || 0" />
+      </div>
+      
+      <div class="data-item">
+        <span class="data-label">题目练习</span>
+        <span class="data-value">{{ userStore.userInfo.learningStatus?.exercise || 0 }}</span>
+      </div>
+      
+      <div class="data-item">
+        <span class="data-label">笔记记录</span>
+        <span class="data-value">{{ userStore.userInfo.learningStatus?.note || 0 }}</span>
+      </div>
     </div>
   </div>
 </template>
