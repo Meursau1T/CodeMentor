@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/** 主页 */
 import { useUserInfoStore } from '../stores/userInfo'
 
 const userStore = useUserInfoStore();

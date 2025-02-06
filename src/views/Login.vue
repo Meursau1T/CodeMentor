@@ -1,9 +1,9 @@
 <script setup lang="ts">
-/** 题库页面 */
+/** 登录页面 */
 </script>
 
 <template>
   <main>
-    <div>"HELLO Question"</div>
+    <div>"HELLO Login"</div>
   </main>
 </template>

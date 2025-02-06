@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/** 课程页面 */
 const courseObj = [
   {
     title: '基础概念',

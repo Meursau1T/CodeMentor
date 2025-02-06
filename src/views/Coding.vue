@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import TheWelcome from '../components/TheWelcome.vue'
+/** 编程页面 */
 </script>
 
 <template>
   <main>
-    <TheWelcome />
+    <div>"HELLO Coding"</div>
   </main>
 </template>
+
