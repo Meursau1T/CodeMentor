@@ -1,11 +1,28 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useUserInfoStore } from '../stores/userInfo'
+import { useRoute } from 'vue-router';
+import { ROUTE_NAME } from '../constants';
 
-const activeValue = ref('main');
+const route = useRoute();
+const activeValue = ref("main");
 const userStore = useUserInfoStore();
 
-// userStore.setUserInfo({ name: 'wxf', avatar: 'URL_ADDRESS'});
+const handleLogout = () => {
+  // 清除 store 中的用户信息
+  userStore.logout();
+};
+
+// 监听路由变化,更新activeValue
+watch(
+  () => route.name,
+  (newRouteName) => {
+    if (newRouteName) {
+      activeValue.value = newRouteName;
+    }
+  },
+  { immediate: true }
+);
 
 </script>
 
@@ -14,11 +31,12 @@ const userStore = useUserInfoStore();
         <template #logo>
             <img class="logo" height="28" src="https://lf3-static.bytednsdoc.com/obj/eden-cn/medeh7bmupenuhd/szu.png" alt="logo" />
         </template>
-        <t-menu-item value="main" to="/" active="true"> 首页 </t-menu-item>
-        <t-menu-item value="course" to="/course"> 课程 </t-menu-item>
-        <t-menu-item value="question" to="/question"> 题库 </t-menu-item>
-        <t-avatar class="user-avatar" v-if="userStore.isLogin()"> {{ userStore.userInfo.name }} </t-avatar>
-        <t-avatar class="user-avatar" v-else > 登录 </t-avatar>
+        <t-menu-item :value="ROUTE_NAME.MAIN" to="/" active="true" :disabled="!userStore.isLogin()"> 首页 </t-menu-item>
+        <t-menu-item :value="ROUTE_NAME.COURSE" to="/course" :disabled="!userStore.isLogin()"> 课程 </t-menu-item>
+        <t-menu-item :value="ROUTE_NAME.QUESTION" to="/question" :disabled="!userStore.isLogin()"> 题库 </t-menu-item>
+        <t-dropdown :options="[{ content: '退出登录', value: 'logout' }]" @click="handleLogout" :disabled="!userStore.isLogin()">
+            <t-avatar class="user-avatar" v-if="userStore.isLogin()">{{ userStore.userInfo.name }}</t-avatar>
+        </t-dropdown>
     </t-head-menu>
 </template>
 
@@ -45,7 +63,7 @@ const userStore = useUserInfoStore();
     gap: 20px;
 }
 
-.header /deep/ .t-head-menu__inner {
+.header :deep(.t-head-menu__inner) {
     flex-grow: 1;
     height: var(--td-comp-size-xxl)
 }
@@ -58,7 +76,7 @@ const userStore = useUserInfoStore();
 }
 
 /** 关闭点击时的背景色 */
-.header /deep/ .t-menu__item div {
+.header :deep(.t-menu__item div) {
     display: none !important;
 }
 

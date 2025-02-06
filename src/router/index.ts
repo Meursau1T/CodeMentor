@@ -5,30 +5,32 @@ import QuestionBank from '../views/QuestionBank.vue'
 import Login from '../views/Login.vue'
 import { useUserInfoStore } from '../stores/userInfo'
 import Cookies from 'js-cookie'
+import { ROUTE_NAME, ROUTE_PATH } from '../constants'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/login',
-      name: 'login',
-      component: Login,
-    },
-    {
-      path: '/',
-      name: 'main',
+      path: ROUTE_PATH.MAIN,
+      name: ROUTE_NAME.MAIN,
       component: MainPage,
       meta: { requiresAuth: true }
     },
     {
-      path: '/course',
-      name: 'course',
+      path: ROUTE_PATH.LOGIN,
+      name: ROUTE_NAME.LOGIN,
+      component: Login,
+      meta: { requiresAuth: false }
+    },
+    {
+      path: ROUTE_PATH.COURSE,
+      name: ROUTE_NAME.COURSE,
       component: Course,
       meta: { requiresAuth: true }
     },
     {
-      path: '/question',
-      name: 'question',
+      path: ROUTE_PATH.QUESTION,
+      name: ROUTE_NAME.QUESTION,
       component: QuestionBank,
       meta: { requiresAuth: true }
     },
