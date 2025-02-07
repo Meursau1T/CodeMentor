@@ -63,7 +63,18 @@ const courseObj = [
       { title: '文件写入' },
       { title: '文件关闭' },
     ]
-  }
+  },
+  {
+    title: '二叉树',
+    subtopics: [
+      { title: '二叉树定义' },
+      { title: '二叉树遍历' },
+      { title: '二叉树插入' },
+      { title: '二叉树删除' },
+      { title: '二叉搜索树' },
+      { title: '平衡二叉树' },
+    ]
+  },
 ]
 const statsList = [
   {

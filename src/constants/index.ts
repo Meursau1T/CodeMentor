@@ -4,7 +4,7 @@ export const ROUTE_NAME = {
   QUESTION: 'question',
   CODING: 'coding',
   LOGIN: 'login',
-}
+} as const
 
 export const ROUTE_PATH = {
   MAIN: '/',
@@ -12,4 +12,4 @@ export const ROUTE_PATH = {
   QUESTION: '/question',
   CODING: '/coding',
   LOGIN: '/login',
-}
+} as const

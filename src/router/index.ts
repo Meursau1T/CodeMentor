@@ -3,6 +3,7 @@ import MainPage from '../views/MainPage.vue'
 import Course from '../views/Course.vue'
 import QuestionBank from '../views/QuestionBank.vue'
 import Login from '../views/Login.vue'
+import Coding from '../views/Coding.vue'
 import { useUserInfoStore } from '../stores/userInfo'
 import Cookies from 'js-cookie'
 import { ROUTE_NAME, ROUTE_PATH } from '../constants'
@@ -32,6 +33,12 @@ const router = createRouter({
       path: ROUTE_PATH.QUESTION,
       name: ROUTE_NAME.QUESTION,
       component: QuestionBank,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: ROUTE_PATH.CODING,
+      name: ROUTE_NAME.CODING,
+      component: Coding,
       meta: { requiresAuth: true }
     },
   ],
