@@ -87,8 +87,7 @@ const columns = [
       type: 'multiple',
       list: difficulties.map(item => ({ label: item.label, value: item.value })),
     },
-    cell: ({ row }: { row: { difficulty: 'easy' | 'medium' | 'hard' } }) => {
-      if (!row) return '-'
+    cell: (_: Function, { row }: { row: { difficulty: 'easy' | 'medium' | 'hard' } }) => {
       const colorMap = {
         easy: '#2BA471',
         medium: '#E37318',
@@ -100,7 +99,7 @@ const columns = [
         hard: '困难'
       }
       return h('span', { style: { color: colorMap[row.difficulty] } }, textMap[row.difficulty])
-    }
+    },
   },
   {
     colKey: 'status',
@@ -113,8 +112,7 @@ const columns = [
         { label: '已完成', value: 'completed' },
       ],
     },
-    cell: ({ row }: { row: { status: 'not_started' | 'in_progress' | 'completed' } }) => {
-      if (!row) return '-'
+    cell: (_: Function, { row }: { row: { status: 'not_started' | 'in_progress' | 'completed' } }) => {
       const statusMap = {
         not_started: '未开始',
         in_progress: '进行中',
@@ -130,8 +128,7 @@ const columns = [
       type: 'multiple',
       list: topics.map(item => ({ label: item.label, value: item.value })),
     },
-    cell: ({ row }: { row: { topics: string[] } }) => {
-      if (!row?.topics) return '-'
+    cell: (_: any, { row }: { row: { topics: string[] } }) => {
       return row.topics.map(t => topics.find(item => item.value === t)?.label).join('、')
     }
   }
