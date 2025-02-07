@@ -1,21 +1,13 @@
 <template>
   <div class="question-bank">
-    <!-- 筛选器区域 -->
-    <div class="filter-area">
-      <t-space>
-        <t-select v-model="difficulty" class="filter-item" placeholder="难度" multiple>
-          <t-option v-for="item in difficulties" :key="item.value" :value="item.value" :label="item.label" />
-        </t-select>
-        <t-select v-model="topic" class="filter-item" placeholder="知识点" multiple>
-          <t-option v-for="item in topics" :key="item.value" :value="item.value" :label="item.label" />
-        </t-select>
-        <t-button theme="danger" variant="base" @click="clearFilters">清空筛选</t-button>
-      </t-space>
-    </div>
-
-    <!-- 题目列表 -->
     <t-card class="question-list" :bordered="false" shadow>
-      <t-table :data="filteredQuestionList" :columns="columns" />
+      <t-table 
+        :data="filteredData" 
+        :columns="columns"
+        :filter-value="filterValue"
+        :filter-icon="filterIcon"
+        @filter-change="onFilterChange"
+      />
     </t-card>
   </div>
 </template>
@@ -24,10 +16,7 @@
 /** 题库页面 */
 import { ref, computed } from 'vue'
 import { h } from 'vue'
-import { Button as TButton } from 'tdesign-vue-next'
-
-const difficulty = ref<string[]>([])
-const topic = ref<string[]>([])
+import { FilterIcon } from 'tdesign-icons-vue-next'
 
 // 难度选项
 const difficulties = [
@@ -50,16 +39,41 @@ const questionList = [
   { title: '最长回文子串', difficulty: 'hard', status: 'completed', topics: ['string'] },
 ]
 
-// 添加计算属性来过滤题目列表
-const filteredQuestionList = computed(() => {
-  return questionList.filter(question => {
-    const matchDifficulty = difficulty.value.length === 0 || difficulty.value.includes(question.difficulty)
-    const matchTopic = topic.value.length === 0 || question.topics?.some(t => topic.value.includes(t))
-    return matchDifficulty && matchTopic
+// 筛选状态
+const filterValue = ref<Record<string, string[]>>({
+  difficulty: [],
+  status: [],
+  topics: [],
+})
+
+// 自定义筛选图标
+const filterIcon = () => h(FilterIcon)
+
+// 筛选变化处理
+const onFilterChange = (filterInfo: Record<string, string[]>) => {
+  filterValue.value = filterInfo
+}
+
+// 修改筛选后的数据计算属性
+const filteredData = computed(() => {
+  return questionList.filter(item => {
+    // 检查难度筛选
+    if (filterValue.value.difficulty?.length && !filterValue.value.difficulty.includes(item.difficulty)) {
+      return false
+    }
+    // 检查状态筛选
+    if (filterValue.value.status?.length && !filterValue.value.status.includes(item.status)) {
+      return false
+    }
+    // 检查知识点筛选
+    if (filterValue.value.topics?.length && !item.topics?.some(t => filterValue.value.topics.includes(t))) {
+      return false
+    }
+    return true
   })
 })
 
-// 表格列配置
+// 修改表格列配置，添加知识点列
 const columns = [
   {
     colKey: 'title',
@@ -69,15 +83,12 @@ const columns = [
   {
     colKey: 'difficulty',
     title: '难度',
+    filter: {
+      type: 'multiple',
+      list: difficulties.map(item => ({ label: item.label, value: item.value })),
+    },
     cell: ({ row }: { row: { difficulty: 'easy' | 'medium' | 'hard' } }) => {
-      // 添加调试日志
-      console.log('row:', row)
-      
-      // 添加空值检查
-      if (!row) {
-        return '-'
-      }
-      
+      if (!row) return '-'
       const colorMap = {
         easy: '#2BA471',
         medium: '#E37318',
@@ -94,11 +105,16 @@ const columns = [
   {
     colKey: 'status',
     title: '状态',
+    filter: {
+      type: 'multiple',
+      list: [
+        { label: '未开始', value: 'not_started' },
+        { label: '进行中', value: 'in_progress' },
+        { label: '已完成', value: 'completed' },
+      ],
+    },
     cell: ({ row }: { row: { status: 'not_started' | 'in_progress' | 'completed' } }) => {
-      // 添加空值检查
-      if (!row) {
-        return '-'
-      }
+      if (!row) return '-'
       const statusMap = {
         not_started: '未开始',
         in_progress: '进行中',
@@ -106,16 +122,20 @@ const columns = [
       }
       return statusMap[row.status]
     }
+  },
+  {
+    colKey: 'topics',
+    title: '知识点',
+    filter: {
+      type: 'multiple',
+      list: topics.map(item => ({ label: item.label, value: item.value })),
+    },
+    cell: ({ row }: { row: { topics: string[] } }) => {
+      if (!row?.topics) return '-'
+      return row.topics.map(t => topics.find(item => item.value === t)?.label).join('、')
+    }
   }
 ]
-
-// 确保注册了组件
-// const { t-table: TTable, t-card: TCard, t-space: TSpace, t-select: TSelect, t-option: TOption } = Table
-
-const clearFilters = () => {
-  difficulty.value = []
-  topic.value = []
-}
 </script>
 
 <style scoped>
