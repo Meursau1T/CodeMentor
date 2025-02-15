@@ -1,9 +1,16 @@
 <script setup lang="ts">
-/** 题库页面 */
+import Detail from "@/views/question/Detail.vue"; // 确保路径正确
+import QuestionList from "@/views/question/QuestionList.vue";
 </script>
+
 
 <template>
   <main>
-    <div>"HELLO Question"</div>
+    <QuestionList />
+    <div style="height: 100px;"></div>
+    <Detail />
+    
+    
+
   </main>
 </template>

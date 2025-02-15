@@ -3,6 +3,7 @@ export const ROUTE_NAME = {
   COURSE: 'course',
   QUESTION: 'question',
   CODING: 'coding',
+  AIMENTOR: 'ai-mentor',
   LOGIN: 'login',
 }
 
@@ -11,5 +12,6 @@ export const ROUTE_PATH = {
   COURSE: '/course',
   QUESTION: '/question',
   CODING: '/coding',
+  AIMENTOR: '/ai-mentor',
   LOGIN: '/login',
 }

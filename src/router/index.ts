@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import MainPage from '../views/MainPage.vue'
 import Course from '../views/Course.vue'
 import QuestionBank from '../views/QuestionBank.vue'
+import AIMentor from '../views/AIMentor.vue'
 import Login from '../views/Login.vue'
 import { useUserInfoStore } from '../stores/userInfo'
 import Cookies from 'js-cookie'
@@ -34,13 +35,18 @@ const router = createRouter({
       component: QuestionBank,
       meta: { requiresAuth: true }
     },
+    {
+      path: ROUTE_PATH.AIMENTOR,
+      name: ROUTE_NAME.AIMENTOR,
+      component: AIMentor,
+      meta: { requiresAuth: true }
+    }
   ],
 })
 
 router.beforeEach((to, from, next) => {
   const userStore = useUserInfoStore()
   const userInfo = Cookies.get('userInfo')
-  
   if (userInfo) {
     userStore.setUserInfo(JSON.parse(userInfo))
   }

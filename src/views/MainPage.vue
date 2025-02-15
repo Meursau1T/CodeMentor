@@ -1,21 +1,38 @@
 <script setup lang="ts">
 /** 主页 */
 import { useUserInfoStore } from '../stores/userInfo'
+import { useRouter } from 'vue-router'
 
 const userStore = useUserInfoStore();
+const router = useRouter();
+
+const goToQuestionBank = () => {
+  router.push('/question');
+}
 </script>
 
 <template>
   <div class="container">
     <div class="left-card" :class="{ 'full-width': !userStore.isLogin() }">
-      <h1 class="title">Empower Your Coding Journey with AI</h1>
-      <div class="intro-card">
-        <div>
-          <span class="intro-text">从掌握基础到解决高难度问题，CodeMentor AI 将为每个学者提供</span>
-          <span class="intro-text-bold">个性化学习计划、智能问答和实时错误分析</span>
-          <span class="intro-text">，助力你的编程目标。</span>
+      <div class="card-content">
+        <h2 class="title">AI赋能编程学习，助你高效掌握代码艺术</h2>
+        <div class="features">
+          <div class="feature-item">
+            <span class="feature-icon">📚</span>
+            <span class="feature-text">智能题库：覆盖C、Python、Java等多种语言</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🔍</span>
+            <span class="feature-text">实时纠错：AI精准诊断代码问题</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🤖</span>
+            <span class="feature-text">24h AI导师：随时提问，即时解答</span>
+          </div>
         </div>
-        <p class="cta-text">加入我们，让你的编程技能更上一层楼！</p>
+        <t-button theme="primary" class="start-btn" @click="goToQuestionBank">
+          开始练习 →
+        </t-button>
       </div>
     </div>
     
@@ -52,18 +69,33 @@ const userStore = useUserInfoStore();
 
 .left-card {
   flex: 1;
-  height: 620px;
+  height: 580px;
   background-color: white;
   box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.1);
   padding: 32px;
   margin-right: 36px;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
 }
 
 .left-card.full-width {
   margin-right: 0;
   width: 100%;
+}
+
+.left-card::before {
+  content: '';
+  position: absolute;
+  height: 500px;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('@/assets/ai.jpeg') center/cover no-repeat;
+  opacity: 0.35;
+  z-index: 1;
 }
 
 .right-section {
@@ -100,36 +132,52 @@ const userStore = useUserInfoStore();
   font-size: 14px;
 }
 
-.title {
-  font-size: 32px;
-  font-weight: bold;
-  margin-bottom: 36px;
-}
-
-.intro-card {
-  background: white;
-  box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.1);
-  padding: 24px;
+.card-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  flex-grow: 1;
 }
 
-.intro-text {
-  font-size: 16px;
-  line-height: 1.6;
+.title {
+  font-size: 28px;
+  font-weight: bold;
+  color: #1a1a1a;
+  margin-bottom: 48px;
+  line-height: 1.4;
+}
+
+.features {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 18px;
   color: #333;
 }
 
-.intro-text-bold {
-  font-weight: bold;
+.feature-icon {
+  font-size: 24px;
 }
 
-.cta-text {
-  color: #ff0000;
+.feature-text {
+  line-height: 1.6;
+}
+
+.start-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: fit-content;
+  padding: 12px 32px;
   font-size: 18px;
-  font-weight: bold;
-  margin-top: 24px;
-    }
+  margin-top: 48px;
+}
 </style>

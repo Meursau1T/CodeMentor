@@ -92,7 +92,7 @@ const statsList = [
 <template>
   <main class="container">
     <div class="left-card">
-      <h1 class="title">知识图谱</h1>
+      <h2 class="title">知识图谱</h2>
       <t-divider style="margin: 8px 0"></t-divider>
       <t-tree
         :data="courseObj"
@@ -115,7 +115,7 @@ const statsList = [
     </div>
     <div class="right-container">
       <div class="right-card">
-        <h1 class="title">能力分析报告</h1>
+        <h2 class="title">能力分析报告</h2>
         <t-divider style="margin: 8px 0"></t-divider>
       </div>
       <div class="bottom-card">
@@ -143,63 +143,89 @@ const statsList = [
   width: 100%;
   padding: 32px;
   gap: 24px;
+  background-color: #f5f5f5;
+  min-height: calc(100vh - 64px);
 }
 
 .left-card {
-  flex: 1;
-  background: white;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  padding: 24px;
+  flex: 0 0 60%; /* 固定宽度 */
+  height: fit-content; /* 高度自适应内容 */
+}
+
+.right-container {
+  flex: 1; /* 占据剩余空间 */
+  display: flex;
+  flex-direction: column;
+  height: fit-content; /* 高度自适应内容 */
+  gap: 24px;
 }
 
 .right-card {
-  width: 450px;
-  height: 380px;
-  background: white;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  padding: 24px;
+  flex: 1; /* 占据上方空间 */
 }
 
 .bottom-card {
-  margin-top: 24px;
+  height: fit-content; /* 高度自适应内容 */
+}
+
+.left-card, .right-card, .bottom-card {
   background: white;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   padding: 24px;
+  transition: all 0.3s ease;
 }
 
 .title {
-  font-size: 32px;
-  font-weight: bold;
-  color: #000;
+  
+  font-weight: 600;
+  color: #0052d9;
   margin-bottom: 4px;
 }
 
 .custom-tree :deep(.t-tree__item[data-level="0"]) {
-  font-size: 20px;
+  font-size: 18px;
+  color: #333333;
 }
 
 .custom-tree :deep(.t-tree__item[data-level="1"]) {
   font-size: 16px;
+  color: #666666;
 }
 
 .operation-btn {
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
-  color: #a6a6a6;
+  color: #0052d9;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.operation-btn:hover {
+  background-color: rgba(0, 82, 217, 0.1);
+  transform: scale(1.05);
 }
 
 .list-item {
   padding: 0;
+  transition: background-color 0.2s ease;
+}
+
+.list-item:hover {
+  background-color: #f5f5f5;
 }
 
 .stats-item {
   display: flex;
   align-items: center;
-  padding: 12px 0;
+  padding: 12px 16px;
 }
 
 .stats-item span {
   margin-left: 12px;
+  color: #333333;
+  font-weight: 500;
 }
 
 </style>

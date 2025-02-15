@@ -29,11 +29,12 @@ watch(
 <template>
     <t-head-menu class="header" v-model="activeValue" theme="light">
         <template #logo>
-            <img class="logo" height="28" src="https://lf3-static.bytednsdoc.com/obj/eden-cn/medeh7bmupenuhd/szu.png" alt="logo" />
+            <img class="logo" height="28" src="@/assets/szu.png" alt="logo" />
         </template>
         <t-menu-item :value="ROUTE_NAME.MAIN" to="/" active="true" :disabled="!userStore.isLogin()"> 首页 </t-menu-item>
         <t-menu-item :value="ROUTE_NAME.COURSE" to="/course" :disabled="!userStore.isLogin()"> 课程 </t-menu-item>
         <t-menu-item :value="ROUTE_NAME.QUESTION" to="/question" :disabled="!userStore.isLogin()"> 题库 </t-menu-item>
+        <t-menu-item :value="ROUTE_NAME.AIMENTOR" to="/ai-mentor" :disabled="!userStore.isLogin()"> AI导师 </t-menu-item>
         <t-dropdown :options="[{ content: '退出登录', value: 'logout' }]" @click="handleLogout" :disabled="!userStore.isLogin()">
             <t-avatar class="user-avatar" v-if="userStore.isLogin()">{{ userStore.userInfo.name }}</t-avatar>
         </t-dropdown>
@@ -70,8 +71,8 @@ watch(
 
 .header .t-menu__item {
     color: #A6A6A6;
-    width: 70px;
-    font-size: medium;
+    width: 90px;
+    font-size: 18px;
     height: var(--td-comp-size-xxl)
 }
 
@@ -110,6 +111,7 @@ watch(
 }
 
 .logo {
-    width: 116px;
+    width: 170px;
+    height: fit-content;
 }
 </style>
