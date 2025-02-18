@@ -7,6 +7,11 @@ import Login from '../views/Login.vue'
 import { useUserInfoStore } from '../stores/userInfo'
 import Cookies from 'js-cookie'
 import { ROUTE_NAME, ROUTE_PATH } from '../constants'
+import Coding from '../views/question/Coding.vue'
+import Profile from '../views/profile/Profile.vue'
+import PersonalInfo from '../views/profile/PersonalInfo.vue'
+import AnswerHistory from '../views/profile/AnswerHistory.vue'
+import AnswerDetail from '../views/profile/AnswerDetail.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -36,10 +41,47 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/question/coding/:id',
+      name: 'coding',
+      component: Coding,
+      meta: { requiresAuth: true }
+    },
+    {
       path: ROUTE_PATH.AIMENTOR,
       name: ROUTE_NAME.AIMENTOR,
       component: AIMentor,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: Profile,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: 'info',
+          name: 'personalInfo',
+          component: PersonalInfo,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'history',
+          name: 'answerHistory',
+          component: AnswerHistory,
+          meta: { requiresAuth: true }
+        },
+        {
+          path: 'answer/:id',
+          name: 'answerDetail',
+          component: AnswerDetail,
+          meta: { requiresAuth: true }
+        }
+      ]
+    },
+    {
+      path: '/teacher-dashboard',
+      component: () => import('../views/teacher/TeacherDashboard.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ],
 })

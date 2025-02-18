@@ -13,14 +13,28 @@ const errorMessage = ref('')
 
 const handleLogin = () => {
   if (!studentId.value || !password.value) {
-    errorMessage.value = '请输入学号和密码'
+    errorMessage.value = '请输入账号和密码'
     return
   }
 
-  // 这里应该调用后端API进行验证，这里简单模拟
+  // 检查是否是管理员登录
+  if (studentId.value === 'admin' && password.value === 'admin') {
+    const adminInfo = {
+      name: 'Administrator',
+      id: 'admin',
+      role: 'admin'
+    }
+    userStore.setUserInfo(adminInfo)
+    Cookies.set('userInfo', JSON.stringify(adminInfo))
+    router.push('/teacher-dashboard')
+    return
+  }
+
+  // 学生登录逻辑
   const mockUserInfo = {
     name: studentId.value,
     id: studentId.value,
+    role: 'student',
     learningStatus: {
       knowledge: 30,
       exercise: 5,

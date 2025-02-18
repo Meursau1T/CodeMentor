@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useRouter } from 'vue-router';
 import Cookies from 'js-cookie';
 import { ROUTE_PATH } from '@/constants';
+import type { UserInfo } from '../types'
 
 export interface UserInfo {
   name: string;
@@ -18,25 +19,52 @@ export interface UserInfo {
   };
 }
 
-export const useUserInfoStore = defineStore('user', () => {
-  const userInfo = ref({} as UserInfo);
-  const router = useRouter();
+export const useUserInfoStore = defineStore('userInfo', () => {
+  const userInfo = ref<UserInfo | null>(null)
+  const router = useRouter()
 
-  function setUserInfo(info: UserInfo) {
-    userInfo.value = info;
+  const setUserInfo = (info: UserInfo) => {
+    userInfo.value = info
+    Cookies.set('userInfo', JSON.stringify(info))
   }
 
-  function isLogin() {
-    return userInfo.value.name;
+  const isLogin = () => {
+    return !!userInfo.value
   }
 
-  function logout() { 
-    userInfo.value = {} as UserInfo;
-    // 清除 cookie
-    Cookies.remove('userInfo');
-    // 跳转到登录页
-    router.push(ROUTE_PATH.LOGIN);
+  const logout = () => {
+    userInfo.value = null
+    Cookies.remove('userInfo')
+    router.push('/login')
   }
 
-  return { userInfo, setUserInfo, isLogin, logout }
+  const changePassword = async (passwordData: {
+    oldPassword: string
+    newPassword: string
+  }) => {
+    try {
+      // TODO: 调用API修改密码
+      // const response = await api.changePassword(passwordData)
+      // if (response.success) {
+      //   logout()
+      //   return true
+      // }
+      // throw new Error(response.message)
+      
+      // Mock implementation
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      logout()
+      return true
+    } catch (error) {
+      throw error
+    }
+  }
+
+  return {
+    userInfo,
+    setUserInfo,
+    isLogin,
+    logout,
+    changePassword
+  }
 })

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 
 // Mock data
 const difficulties = [
@@ -141,6 +142,14 @@ const handleFilterChange = () => {
   currentPage.value = 1;
 };
 
+const router = useRouter();
+
+const handleQuestionClick = (data: { row: { id: string}}) => {
+  if (data.row.id) {
+    router.push(`/question/coding/${data.row.id}`);
+  }
+};
+
 // Define table columns
 const columns = [
   {
@@ -224,12 +233,15 @@ const columns = [
     <t-table
       :data="paginatedQuestions"
       :columns="columns"
+      class="question-table"
+      @row-click="handleQuestionClick"
       :pagination="{
         current: currentPage,
         pageSize: pageSize,
         total: filteredQuestions.length,
         onChange: handlePageChange
       }"
+      hover
     />
   </div>
 </template>
@@ -241,6 +253,10 @@ const columns = [
 
 .filters {
   margin-bottom: 20px;
+}
+
+:deep(.question-table tbody tr) {
+  cursor: pointer;
 }
 </style>
 

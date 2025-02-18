@@ -1,16 +1,43 @@
-<script setup>
-import { ref, watch } from 'vue';
+<script setup lang="ts">
+import { ref, watch, computed } from 'vue';
 import { useUserInfoStore } from '../stores/userInfo'
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ROUTE_NAME } from '../constants';
 
 const route = useRoute();
-const activeValue = ref("main");
+const activeValue = ref<string | symbol>("main");
 const userStore = useUserInfoStore();
+const router = useRouter();
+
+const menuItems = computed(() => {
+  console.log('Current user role:', userStore.userInfo?.role);
+  
+  if (userStore.userInfo?.role === 'admin') {
+    console.log('Showing teacher menu');
+    return [
+      { value: ROUTE_NAME.TEACHER_DASHBOARD, label: '教师端', to: '/teacher-dashboard' }
+    ];
+  }
+  console.log('Showing student menu');
+  return [
+    { value: ROUTE_NAME.MAIN, label: '首页', to: '/' },
+    { value: ROUTE_NAME.COURSE, label: '课程', to: '/course' },
+    { value: ROUTE_NAME.QUESTION, label: '题库', to: '/question' },
+    { value: ROUTE_NAME.AIMENTOR, label: 'AI导师', to: '/ai-mentor' }
+  ];
+});
 
 const handleLogout = () => {
   // 清除 store 中的用户信息
   userStore.logout();
+};
+
+const handleDropdownClick = (data: { value: string }) => {  
+  if (data.value === 'logout') {
+    handleLogout();
+  } else if (data.value === 'profile') {
+    router.push('/profile/info');
+  }
 };
 
 // 监听路由变化,更新activeValue
@@ -31,12 +58,26 @@ watch(
         <template #logo>
             <img class="logo" height="28" src="@/assets/szu.png" alt="logo" />
         </template>
-        <t-menu-item :value="ROUTE_NAME.MAIN" to="/" active="true" :disabled="!userStore.isLogin()"> 首页 </t-menu-item>
-        <t-menu-item :value="ROUTE_NAME.COURSE" to="/course" :disabled="!userStore.isLogin()"> 课程 </t-menu-item>
-        <t-menu-item :value="ROUTE_NAME.QUESTION" to="/question" :disabled="!userStore.isLogin()"> 题库 </t-menu-item>
-        <t-menu-item :value="ROUTE_NAME.AIMENTOR" to="/ai-mentor" :disabled="!userStore.isLogin()"> AI导师 </t-menu-item>
-        <t-dropdown :options="[{ content: '退出登录', value: 'logout' }]" @click="handleLogout" :disabled="!userStore.isLogin()">
-            <t-avatar class="user-avatar" v-if="userStore.isLogin()">{{ userStore.userInfo.name }}</t-avatar>
+        <t-menu-item 
+          v-for="item in menuItems" 
+          :key="item.value"
+          :value="item.value" 
+          :to="item.to" 
+          :disabled="!userStore.isLogin()"
+        >
+          {{ item.label }}
+        </t-menu-item>
+        <t-dropdown 
+          :options="[
+            { content: '个人主页', value: 'profile' },
+            { content: '退出登录', value: 'logout' }
+          ]" 
+          @click="handleDropdownClick"
+          :disabled="!userStore.isLogin()"
+        >
+          <t-avatar class="user-avatar" v-if="userStore.isLogin()">
+            {{ userStore.userInfo.name }}
+          </t-avatar>
         </t-dropdown>
     </t-head-menu>
 </template>

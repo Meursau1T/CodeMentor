@@ -7,8 +7,8 @@ import QuestionList from "@/views/question/QuestionList.vue";
 <template>
   <main>
     <QuestionList />
-    <div style="height: 100px;"></div>
-    <Detail />
+    <!-- <div style="height: 100px;"></div>
+    <Detail /> -->
     
     
 

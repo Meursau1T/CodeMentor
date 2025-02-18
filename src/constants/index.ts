@@ -5,7 +5,8 @@ export const ROUTE_NAME = {
   CODING: 'coding',
   AIMENTOR: 'ai-mentor',
   LOGIN: 'login',
-}
+  TEACHER_DASHBOARD: 'teacher-dashboard',
+} as const;
 
 export const ROUTE_PATH = {
   MAIN: '/',
