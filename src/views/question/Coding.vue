@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import AIChatDialog from '../../../components/AIChatDialog.vue';
 
 const route = useRoute();
 const questionId = route.params.id; // 获取路由参数
@@ -98,6 +99,8 @@ const goToNextQuestion = () => {
   // Mock navigation logic
   console.log('跳转到下一题');
 };
+
+const showAIChat = ref(false);
 </script>
 
 <template>
@@ -205,16 +208,25 @@ const goToNextQuestion = () => {
         </div>
 
         <!-- 知识点讲解 -->
-        <div class="result-section">
-          <h3>知识点讲解</h3>
+        <div class="knowledge-section">
+          <div class="section-header">
+            <h3>知识点讲解</h3>
+            <button class="ask-ai-button" @click="showAIChat = true">
+              ？有疑问点击请教AI老师
+            </button>
+          </div>
           <t-card :bordered="true" theme="default">
-            <div class="explanation-text" style="white-space: pre-line">
-              {{ solution.explanation }}
-            </div>
+          <div class="explanation-text" style="white-space: pre-line">
+            {{ solution.explanation }}
+          </div>
           </t-card>
         </div>
       </template>
     </div>
+
+    <AIChatDialog
+      v-model:visible="showAIChat"
+    />
   </div>
 </template>
 
@@ -398,5 +410,40 @@ const goToNextQuestion = () => {
   font-size: 14px;
   line-height: 1.6;
   color: #4B5563;
+}
+
+.knowledge-section {
+  margin-top: 24px;
+}
+
+.knowledge-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1F2937;
+  /**margin-bottom: 16px;*/
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  justify-content: flex-start;
+  gap: 20px;
+}
+
+.ask-ai-button {
+  padding: 6px 12px;
+  border: none;
+  background-color: #1a73e8;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+}
+
+.ask-ai-button:hover {
+  background-color: #1557b0;
 }
 </style>
