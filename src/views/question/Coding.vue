@@ -1,38 +1,86 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import AIChatDialog from '../../../components/AIChatDialog.vue';
+import Cookies from 'js-cookie';
 
 const route = useRoute();
-const questionId = route.params.id; // 获取路由参数
+const router = useRouter();
+const questionId = ref(Number(route.params.id));
 
-// Mock data for the question
-const question = {
-  title: "两数之和",
-  difficulty: "简单", // 简单、中等、困难
-  description: `给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出和为目标值的那两个整数，并返回它们的数组下标。
-你可以假设每种输入只会对应一个答案。但是，数组中同一个元素在答案里不能重复出现。`,
-  examples: [
-    {
-      input: "nums = [2,7,11,15], target = 9",
-      output: "[0,1]",
-      explanation: "因为 nums[0] + nums[1] == 9 ，返回 [0, 1]"
+// Interface for the API response
+interface ProblemDetail {
+  content: string;
+  difficulty: string;
+  id: number;
+  knowledge_point_info: any;
+  sample_cases: string;
+  tags: Array<{
+    ID: number;
+    name: string;
+    problems: any;
+    knowledge_point_id: number;
+  }>;
+  title: string;
+  title_slug: string;
+}
+
+const question = ref<ProblemDetail | null>(null);
+
+// Fetch question details
+const fetchQuestionDetail = async (id: number) => {
+  const url = `http://47.119.38.174:8080/api/problems/${id}/`;
+  const token = Cookies.get('authToken');
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Network response was not ok ' + response.statusText);
     }
-  ],
-  testCases: [
-    {
-      input: "[3,2,4], 6",
-      expectedOutput: "[1,2]"
-    }
-  ],
-  hints: ["可以使用哈希表来优化时间复杂度"]
+
+    const { data } = await response.json();
+    question.value = data;
+  } catch (error) {
+    console.error('获取题目详情失败:', error);
+  }
 };
+
+// Load question details on mount and when ID changes
+onMounted(() => {
+  fetchQuestionDetail(questionId.value);
+});
 
 const userCode = ref('');
 const testInput = ref('');
+
+// 添加运行结果接口响应类型
+interface JudgeResult {
+  code_answer?: string[];
+  expected_code_answer?: string[];
+  status_runtime: string;
+  status_memory: string;
+  status_msg: string;
+  total_correct: number;
+  total_testcases: number;
+  run_success: boolean;
+  display_runtime?: string;
+  memory_percentile?: number;
+  runtime_percentile?: number;
+  state: string;
+}
+
 const testResult = ref({
-  status: '', // 'success' or 'error'
-  message: ''
+  show: false,
+  status: false,
+  message: '',
+  details: null as JudgeResult | null
 });
 
 const isSubmitted = ref(false);
@@ -56,55 +104,377 @@ const solution = {
 3. 数组遍历技巧`
 };
 
-const aiCorrection = {
-  code: `// 您的代码可以通过以下方式优化：
-function twoSum(nums, target) {
-  const map = new Map();  // 使用哈希表存储已遍历的数字
-  for (let i = 0; i < nums.length; i++) {
-    const complement = target - nums[i];
-    if (map.has(complement)) {
-      return [map.get(complement), i];
+const aiCorrection = ref('');
+
+// 添加编程语言选项
+const programmingLanguages = [
+  { value: 'python3', label: 'Python3' },
+  { value: 'java', label: 'Java' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'golang', label: 'Go' },
+];
+
+const selectedLanguage = ref(programmingLanguages[0].value);
+const isSubmitting = ref(false);
+const submitResult = ref({
+  show: false,
+  status: false,
+  message: '',
+  details: null as JudgeResult | null
+});
+
+// 添加加载状态
+const isAnalyzing = ref(false);
+const isCorrecting = ref(false);
+
+// 检查判题结果
+const checkResult = async (id: Number) => {
+  const url = `http://47.119.38.174:8080/api/leetcode/check/${id}/`;
+  const token = Cookies.get('authToken');
+  
+  const MAX_RETRIES = 30;
+  const POLLING_INTERVAL = 1000;
+  let retryCount = 0;
+
+  const poll = async (): Promise<any> => {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      
+      if (data.result && data.data) {
+        // 如果状态是PENDING或STARTED，并且未超过最大重试次数，继续轮询
+        if ((data.data.state === 'PENDING' || data.data.state === 'STARTED') && retryCount < MAX_RETRIES) {
+          retryCount++;
+          await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+          return poll();
+        }
+
+        // 标准化返回数据
+        const result: JudgeResult = {
+          status_runtime: data.data.status_runtime || '0 ms',
+          status_memory: data.data.status_memory || '0 MB',
+          status_msg: data.data.status_msg || 'Unknown',
+          total_correct: data.data.total_correct || 0,
+          total_testcases: data.data.total_testcases || 0,
+          run_success: data.data.run_success || false,
+          state: data.data.state || 'UNKNOWN',
+          display_runtime: data.data.display_runtime,
+          memory_percentile: data.data.memory_percentile,
+          runtime_percentile: data.data.runtime_percentile
+        };
+
+        // 如果是解释器返回的结果，添加代码答案相关字段
+        if (data.data.code_answer) {
+          result.code_answer = data.data.code_answer;
+          result.expected_code_answer = data.data.expected_code_answer;
+        }
+
+        return result;
+      }
+      
+      throw new Error('Failed to get judge result');
+    } catch (error) {
+      console.error('获取判题结果失败:', error);
+      return null;
     }
-    map.set(nums[i], i);
-  }
-  return [];
-}`,
-  explanation: "您的解法时间复杂度较高，建议使用哈希表优化查找过程。"
+  };
+
+  return poll();
 };
 
-const runTest = () => {
-  // Mock test running logic
-  setTimeout(() => {
-    if (testInput.value.includes('[3,2,4], 6')) {
-      testResult.value = {
-        status: 'success',
-        message: '测试通过'
+// 运行测试用例
+const runTest = async () => {
+  const url = 'http://47.119.38.174:8080/api/leetcode/interpret_solution/';
+  const token = Cookies.get('authToken');
+
+  try {
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        lang: selectedLanguage.value,
+        leetcode_question_id: questionId.value,
+        typed_code: userCode.value
+      })
+    });
+
+    const data = await response.json();
+    if (data.result && data.data && data.data.interpret_id) {
+      // 等待并获取判题结果
+      const result = await checkResult(data.data.interpret_id);
+      if (result) {
+        testResult.value = {
+          show: true,
+          status: result.status_msg === 'Accepted',
+          message: result.status_msg === 'Accepted'
+            ? '太棒了！测试用例全部通过，你的代码运行得很好！' 
+            : `测试未通过: ${result.status_msg}。再检查一下代码逻辑吧！`,
+          details: result
+        };
+      }
+    }
+
+    // 3秒后自动关闭提示
+    setTimeout(() => {
+      testResult.value.show = false;
+    }, 3000);
+  } catch (error) {
+    console.error('运行测试失败:', error);
+    testResult.value = {
+      show: true,
+      status: false,
+      message: '运行测试失败，请重试',
+      details: null
+    };
+  }
+};
+
+// 修改分析代码函数
+const analyzeCode = async () => {
+  isAnalyzing.value = true;
+  const url = 'http://47.119.38.174:8080/api/ai/analyze_code/';
+  const token = Cookies.get('authToken');
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        problem_id: questionId.value,
+        language: selectedLanguage.value,
+        typed_code: userCode.value
+      })
+    });
+
+    const data = await response.json();
+    if (data.result && data.data && data.data.message) {
+      const message = data.data.message;
+      // 使用 "AI讲师分析" 分割消息
+      const parts = message.split('**AI讲师分析**');
+      
+      // 提取错误分析和讲师分析的内容
+      const errorPart = parts[0].replace('**错误分析**：', '').trim();
+      const teacherPart = parts[1]?.replace('：', '').trim() || '';
+
+      // 提取花括号中的内容
+      const extractContent = (text: string) => {
+        const match = text.match(/\{([^}]+)\}/);
+        return match ? match[1].trim() : text.trim();
+      };
+
+      aiAnalysis.value = {
+        errorAnalysis: extractContent(errorPart),
+        teacherAnalysis: extractContent(teacherPart)
       };
     } else {
-      testResult.value = {
-        status: 'error',
-        message: '测试失败：输出结果与预期不符'
+      aiAnalysis.value = {
+        errorAnalysis: '',
+        teacherAnalysis: '暂时无法获取分析结果，请稍后重试。'
       };
     }
-  }, 500);
+  } catch (error) {
+    console.error('分析代码失败:', error);
+    aiAnalysis.value = {
+      errorAnalysis: '',
+      teacherAnalysis: '分析过程出现错误，请稍后重试。'
+    };
+  } finally {
+    isAnalyzing.value = false;
+  }
 };
 
-const submitAnswer = () => {
-  isSubmitted.value = true;
-  // Mock submission logic - assuming the answer is incorrect for this example
-  isCorrect.value = false;
+const correctCode = async () => {
+  isCorrecting.value = true;
+  const url = 'http://47.119.38.174:8080/api/ai/correct_code/';
+  const token = Cookies.get('authToken');
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        problem_id: questionId.value,
+        language: selectedLanguage.value,
+        typed_code: userCode.value
+      })
+    });
+
+    const data = await response.json();
+    if (data.result) {
+      aiCorrection.value = data.data.code;
+    }
+  } catch (error) {
+    console.error('获取纠错代码失败:', error);
+  } finally {
+    isCorrecting.value = false;
+  }
+};
+
+// 新增响应式变量
+const aiAnalysis = ref({
+  errorAnalysis: '',
+  teacherAnalysis: ''
+});
+
+// 处理加粗文本和数学公式的函数
+const processBoldText = (text: string) => {
+  // 首先处理数学公式
+  text = text.replace(/\\\(([^\\]+)\\\)/g, '($1)');
+  
+  // 处理特殊的数学符号
+  text = text.replace(/\\cdot/g, '·');
+  
+  // 处理加粗文本
+  return text.replace(/\*\*([\d.]+|\S[^*]*?\S)\*\*/g, '<strong>$1</strong>');
+};
+
+// 修改提交答案函数
+const submitAnswer = async () => {
+  isSubmitting.value = true;
+  const url = 'http://47.119.38.174:8080/api/leetcode/submit/';
+  const token = Cookies.get('authToken');
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        lang: selectedLanguage.value,
+        leetcode_question_id: questionId.value,
+        typed_code: userCode.value
+      })
+    });
+
+    const data = await response.json();
+    if (data.result && data.data && data.data.submission_id) {
+      // 等待并获取判题结果
+      const result = await checkResult(data.data.submission_id);
+      console.log(result);
+      if (result) {
+        isSubmitted.value = true;
+        isCorrect.value = result.status_msg === 'Accepted';
+        submitResult.value = {
+          show: true,
+          status: result.status_msg === 'Accepted',
+          message: result.status_msg === 'Accepted'
+            ? '恭喜你！成功解决了这道题目，你的编程能力又提升了！' 
+            : `提交未通过: ${result.status_msg}。继续努力，你一定能解决这个问题！`,
+          details: result
+        };
+
+        // 如果提交成功，只分析代码
+        // 如果提交失败，分析代码并获取纠错建议
+        await analyzeCode();
+        if (!result.status_msg === 'Accepted') {
+          await correctCode();
+        }
+      }
+    }
+
+    // 3秒后自动关闭提示
+    setTimeout(() => {
+      submitResult.value.show = false;
+    }, 3000);
+  } catch (error) {
+    console.error('提交答案失败:', error);
+    submitResult.value = {
+      show: true,
+      status: false,
+      message: '提交失败，请重试',
+      details: null
+    };
+  } finally {
+    isSubmitting.value = false;
+  }
 };
 
 const goToNextQuestion = () => {
-  // Mock navigation logic
-  console.log('跳转到下一题');
+  const nextId = questionId.value + 1;
+  router.push(`/question/coding/${nextId}`);
+  questionId.value = nextId;
+  fetchQuestionDetail(nextId);
 };
 
 const showAIChat = ref(false);
 </script>
 
 <template>
-  <div class="question-detail">
+  <div class="question-detail" v-if="question">
+    <!-- Alert 提示区域 -->
+    <t-alert
+      v-if="testResult.show"
+      :theme="testResult.status ? 'success' : 'error'"
+      :message="testResult.message"
+      class="alert-message"
+    />
+    <t-alert
+      v-if="submitResult.show"
+      :theme="submitResult.status ? 'success' : 'error'"
+      :message="submitResult.message"
+      class="alert-message"
+    />
+
+    <!-- 运行结果详情卡片 -->
+    <t-card
+      v-if="submitResult.details"
+      :bordered="true"
+      theme="default"
+      class="result-details"
+      title="运行详情"
+    >
+      <t-space direction="vertical">
+        <t-row>
+          <t-col :span="12">
+            <div class="detail-item">
+              <span class="label">执行用时：</span>
+              <span class="value">{{ submitResult.details.display_runtime + ' ms' }}</span>
+            </div>
+          </t-col>
+          <t-col :span="12">
+            <div class="detail-item">
+              <span class="label">内存消耗：</span>
+              <span class="value">{{ submitResult.details.status_memory }}</span>
+            </div>
+          </t-col>
+        </t-row>
+        <t-row>
+          <t-col :span="12">
+            <div class="detail-item">
+              <span class="label">测试用例：</span>
+              <span class="value">通过 {{ submitResult.details.total_correct }}/{{ submitResult.details.total_testcases + ' 道'}}</span>
+            </div>
+          </t-col>
+          <t-col :span="12">
+            <div class="detail-item">
+              <span class="label">状态：</span>
+              <span class="value">{{ submitResult.details.status_msg }}</span>
+            </div>
+          </t-col>
+        </t-row>
+      </t-space>
+    </t-card>
+
     <!-- 题目描述区域 -->
     <div class="question-section">
       <div class="nav-bar">
@@ -118,33 +488,25 @@ const showAIChat = ref(false);
       <div class="content">
         <div class="title-section">
           <h1>{{ question.title }}</h1>
-          <span :class="['difficulty-tag', question.difficulty]">
+          <span :class="['difficulty-tag', question.difficulty.toLowerCase()]">
             {{ question.difficulty }}
           </span>
         </div>
 
-        <div class="description">
-          {{ question.description }}
+        <div class="description" v-html="question.content">
         </div>
 
-        <div class="examples">
-          <div v-for="(example, index) in question.examples" :key="index" class="example-card">
-            <div class="example-title">示例 {{ index + 1}}：</div>
-            <div class="code-block">输入：{{ example.input }}</div>
-            <div class="code-block">输出：{{ example.output }}</div>
-            <div v-if="example.explanation" class="explanation">
-              解释：{{ example.explanation }}
-            </div>
-          </div>
+        <!-- Tags section -->
+        <div class="tags-section">
+          <t-tag v-for="tag in question.tags" :key="tag.ID" theme="primary" variant="light">
+            {{ tag.name }}
+          </t-tag>
         </div>
 
-        <div class="hints">
-          <div class="hint-title">提示：</div>
-          <ul>
-            <li v-for="(hint, index) in question.hints" :key="index">
-              {{ hint }}
-            </li>
-          </ul>
+        <!-- Sample cases -->
+        <div class="sample-cases" v-if="question.sample_cases">
+          <h3>示例输入：</h3>
+          <pre class="code-block">{{ question.sample_cases }}</pre>
         </div>
       </div>
     </div>
@@ -156,6 +518,11 @@ const showAIChat = ref(false);
     <div class="answer-section">
       <div class="answer-header">
         <h2>用户作答</h2>
+        <t-select
+          v-model="selectedLanguage"
+          :options="programmingLanguages"
+          :style="{ width: '150px' }"
+        />
       </div>
 
       <div class="code-editor">
@@ -167,43 +534,34 @@ const showAIChat = ref(false);
         />
       </div>
 
-      <!-- 测试区域，提交后隐藏 -->
-      <div v-if="!isSubmitted" class="test-area">
-        <t-textarea
-          v-model="testInput"
-          :autosize="{ minRows: 3, maxRows: 5 }"
-          placeholder="输入测试用例..."
-        />
-        <t-button theme="default" @click="runTest">运行</t-button>
+      <!-- 按钮区域 -->
+      <div v-if="!isSubmitted" class="button-group">
+        <div class="button-container">
+          <t-button theme="default" @click="runTest" :loading="isSubmitting">
+            运行测试用例
+          </t-button>
+          <t-button theme="primary" @click="submitAnswer" :loading="isSubmitting">
+            提交代码
+          </t-button>
+        </div>
       </div>
-
-      <div v-if="testResult.status" 
-           :class="['test-result', testResult.status]">
-        {{ testResult.message }}
-      </div>
-
-      <t-button v-if="!isSubmitted" theme="primary" block @click="submitAnswer">
-        确认提交
-      </t-button>
 
       <!-- 提交后显示的内容 -->
       <template v-if="isSubmitted">
         <!-- 如果答案错误，显示AI纠错 -->
         <div v-if="!isCorrect" class="result-section">
-          <h3>AI 代码优化建议</h3>
+          <h3>AI 代码纠错</h3>
           <t-card :bordered="true" theme="default">
-            <t-space direction="vertical">
-              <pre class="code-block">{{ aiCorrection.code }}</pre>
-              <p class="explanation-text">{{ aiCorrection.explanation }}</p>
+            <template v-if="isCorrecting || isAnalyzing">
+              <div class="loading-container">
+                <t-loading />
+                <p>AI 正在分析您的代码，请稍候...</p>
+              </div>
+            </template>
+            <t-space v-else direction="vertical">
+              <div class="explanation-text" v-html="processBoldText(aiAnalysis.errorAnalysis)"></div>
+              <pre class="code-block">{{ aiCorrection }}</pre>
             </t-space>
-          </t-card>
-        </div>
-
-        <!-- 标准解答 -->
-        <div class="result-section">
-          <h3>参考解答</h3>
-          <t-card :bordered="true" theme="default">
-            <pre class="code-block">{{ solution.code }}</pre>
           </t-card>
         </div>
 
@@ -216,9 +574,14 @@ const showAIChat = ref(false);
             </button>
           </div>
           <t-card :bordered="true" theme="default">
-          <div class="explanation-text" style="white-space: pre-line">
-            {{ solution.explanation }}
-          </div>
+            <template v-if="isAnalyzing">
+              <div class="loading-container">
+                <t-loading />
+                <p>AI 正在总结知识点，请稍候...</p>
+              </div>
+            </template>
+            <div v-else class="explanation-text" v-html="processBoldText(aiAnalysis.teacherAnalysis)">
+            </div>
           </t-card>
         </div>
       </template>
@@ -281,15 +644,15 @@ const showAIChat = ref(false);
   color: white;
 }
 
-.difficulty-tag.简单 {
+.difficulty-tag.easy {
   background-color: #10B981;
 }
 
-.difficulty-tag.中等 {
+.difficulty-tag.medium {
   background-color: #F59E0B;
 }
 
-.difficulty-tag.困难 {
+.difficulty-tag.hard {
   background-color: #EF4444;
 }
 
@@ -328,6 +691,7 @@ const showAIChat = ref(false);
 .answer-header {
   height: 50px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
@@ -344,32 +708,44 @@ const showAIChat = ref(false);
   gap: 16px;
 }
 
-.test-result {
+.test-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   margin: 16px 0;
-  padding: 12px;
+}
+
+.test-status {
+  font-weight: 500;
+}
+
+.test-status.success {
+  color: #67C23A;
+}
+
+.test-status.error {
+  color: #F56C6C;
+}
+
+.submit-area {
+  margin-top: 20px;
+}
+
+.submit-message {
+  margin-top: 12px;
+  padding: 8px;
   border-radius: 4px;
-  animation: fadeIn 0.3s ease-in;
+  text-align: center;
 }
 
-.test-result.success {
-  background-color: rgba(16, 185, 129, 0.1);
-  color: #10B981;
-  border-left: 4px solid #10B981;
+.submit-message.success {
+  background-color: rgba(103, 194, 58, 0.1);
+  color: #67C23A;
 }
 
-.test-result.error {
-  background-color: rgba(239, 68, 68, 0.1);
-  color: #EF4444;
-  border-left: 4px solid #EF4444;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.submit-message.error {
+  background-color: rgba(245, 108, 108, 0.1);
+  color: #F56C6C;
 }
 
 @media (max-width: 768px) {
@@ -397,6 +773,13 @@ const showAIChat = ref(false);
   margin-bottom: 16px;
 }
 
+.explanation-text {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #4B5563;
+  white-space: pre-line; /* 保留换行符 */
+}
+
 .code-block {
   font-family: Monaco, Consolas, monospace;
   background-color: #F3F4F6;
@@ -404,12 +787,7 @@ const showAIChat = ref(false);
   border-radius: 4px;
   overflow-x: auto;
   white-space: pre;
-}
-
-.explanation-text {
-  font-size: 14px;
-  line-height: 1.6;
-  color: #4B5563;
+  margin-top: 12px;
 }
 
 .knowledge-section {
@@ -420,7 +798,6 @@ const showAIChat = ref(false);
   font-size: 18px;
   font-weight: 600;
   color: #1F2937;
-  /**margin-bottom: 16px;*/
 }
 
 .section-header {
@@ -445,5 +822,134 @@ const showAIChat = ref(false);
 
 .ask-ai-button:hover {
   background-color: #1557b0;
+}
+
+.tags-section {
+  margin: 16px 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+:deep(.description) {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+:deep(.description code) {
+  background-color: #f3f4f6;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: Monaco, Consolas, monospace;
+}
+
+:deep(.description pre) {
+  background-color: #f3f4f6;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+:deep(.description ul) {
+  padding-left: 24px;
+  margin: 16px 0;
+}
+
+:deep(.description li) {
+  margin: 8px 0;
+}
+
+.alert-message {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  min-width: 300px;
+}
+
+.button-group {
+  margin-top: 20px;
+  padding: 16px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.answer-section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.code-editor {
+  flex: 1;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.loading-container p {
+  margin-top: 16px;
+  color: #666;
+  font-size: 14px;
+}
+
+:deep(.explanation-text) {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #4B5563;
+  white-space: pre-line; /* 保留换行符 */
+}
+
+:deep(.explanation-text strong) {
+  font-weight: 600;
+  color: #1a73e8;
+}
+
+/* 添加数学公式样式 */
+:deep(.explanation-text .math) {
+  font-family: 'Times New Roman', serif;
+  padding: 0 4px;
+}
+
+.code-block {
+  font-family: Monaco, Consolas, monospace;
+  background-color: #F3F4F6;
+  padding: 16px;
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre;
+  margin-top: 12px;
+}
+
+.result-details {
+  margin: 16px 0;
+}
+
+.detail-item {
+  padding: 8px 0;
+}
+
+.detail-item .label {
+  color: #666;
+  margin-right: 8px;
+}
+
+.detail-item .value {
+  color: #1a73e8;
+  font-weight: 500;
 }
 </style>

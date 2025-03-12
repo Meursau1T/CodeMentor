@@ -11,40 +11,63 @@ const studentId = ref('')
 const password = ref('')
 const errorMessage = ref('')
 
-const handleLogin = () => {
+const handleLogin = async () => {
   if (!studentId.value || !password.value) {
     errorMessage.value = '请输入账号和密码'
     return
   }
 
-  // 检查是否是管理员登录
-  if (studentId.value === 'admin' && password.value === 'admin') {
-    const adminInfo = {
-      name: 'Administrator',
-      id: 'admin',
-      role: 'admin'
-    }
-    userStore.setUserInfo(adminInfo)
-    Cookies.set('userInfo', JSON.stringify(adminInfo))
-    router.push('/teacher-dashboard')
-    return
-  }
+  try {
+    const response = await fetch('http://47.119.38.174:8080/api/users/login/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        student_id: studentId.value,
+        password: password.value
+      })
+    })
 
-  // 学生登录逻辑
-  const mockUserInfo = {
-    name: studentId.value,
-    id: studentId.value,
-    role: 'student',
-    learningStatus: {
-      knowledge: 30,
-      exercise: 5,
-      note: 2
-    }
-  }
+    const data = await response.json()
+    if (data.result) {
+      const token = data.data.token
+      Cookies.set('authToken', token)
+      // 检查是否是管理员登录
+      if (studentId.value === 'admin' && password.value === 'admin') {
+        const adminInfo = {
+          name: 'Administrator',
+          id: 'admin',
+          role: 'admin'
+        }
+        userStore.setUserInfo(adminInfo)
+        Cookies.set('userInfo', JSON.stringify(adminInfo))
+        router.push('/teacher-dashboard')
+        return
+      }
 
-  userStore.setUserInfo(mockUserInfo)
-  Cookies.set('userInfo', JSON.stringify(mockUserInfo))
-  router.push('/')
+      // 学生登录逻辑
+      const mockUserInfo = {
+        name: studentId.value,
+        id: studentId.value,
+        role: 'student',
+        learningStatus: {
+          knowledge: 30,
+          exercise: 5,
+          note: 2
+        }
+      }
+
+      userStore.setUserInfo(mockUserInfo)
+      Cookies.set('userInfo', JSON.stringify(mockUserInfo))
+      router.push('/')
+    } else {
+      errorMessage.value = '登录失败，请检查账号和密码'
+    }
+  } catch (error) {
+    console.error('登录失败:', error)
+    errorMessage.value = '登录失败，请重试'
+  }
 }
 </script>
 

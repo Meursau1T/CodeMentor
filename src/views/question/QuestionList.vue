@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import Cookies from 'js-cookie';
 
 // Mock data
 const difficulties = [
@@ -55,15 +56,58 @@ const mockQuestions = [
 ];
 
 // Reactive states
+const questions = ref([]);
 const selectedDifficulties = ref([]);
 const selectedTopics = ref([]);
 const currentPage = ref(1);
-const pageSize = ref(10);
+const pageSize = ref(20);
 const searchQuery = ref('');
+const total = ref(0);
+const loading = ref(false);
+
+// 获取题目列表
+const fetchQuestions = async () => {
+  loading.value = true;
+  const url = 'http://47.119.38.174:8080/api/problems/';
+  const token = Cookies.get('authToken'); // Retrieve token from cookies
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    });
+
+    if (!response.ok) {
+      throw new Error('Network response was not ok ' + response.statusText);
+    }
+
+    const data = await response.json();
+    questions.value = data.data.map(question => ({
+      ...question,
+      difficulty: question.difficulty.toUpperCase(),
+      topics: [],
+      status: question.status
+    }));
+    total.value = data.total || questions.value.length;
+  } catch (error) {
+    console.error('获取题目列表失败:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 在组件挂载时获取数据
+onMounted(() => {
+  fetchQuestions();
+});
 
 // Computed properties
 const filteredQuestions = computed(() => {
-  let result = [...mockQuestions];
+  let result = [...questions.value];
   
   if (selectedDifficulties.value.length) {
     result = result.filter(q => selectedDifficulties.value.includes(q.difficulty));
@@ -78,7 +122,6 @@ const filteredQuestions = computed(() => {
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     result = result.filter(q => 
-      q.title.toLowerCase().includes(query) || 
       q.title_slug.toLowerCase().includes(query)
     );
   }
@@ -95,25 +138,29 @@ const paginatedQuestions = computed(() => {
 });
 
 // Methods
-const getStatusIcon = (status: string) => {
+const getStatusLabel = (status: string) => {
   switch (status) {
     case 'SOLVED':
-      return 'check-circle-filled';
-    case 'ATTEMPTED':
-      return 'error-circle-filled';
+      return '已解答';
+    case 'TRIED':
+      return '尝试过';
+    case 'UNTRIED':
+      return '未开始';
     default:
-      return 'minus-circle';
+      return '未开始';
   }
 };
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'SOLVED':
-      return '#10B981';
-    case 'ATTEMPTED':
-      return '#F59E0B';
+      return '#67C23A';  // 绿色
+    case 'TRIED':
+      return '#E6A23C';  // 橙色
+    case 'UNTRIED':
+      return '#909399';  // 灰色
     default:
-      return '#9CA3AF';
+      return '#909399';
   }
 };
 
@@ -134,8 +181,9 @@ const getTopicLabels = (topicValues: string[]) => {
     .join(', ');
 };
 
-const handlePageChange = (page: number) => {
-  currentPage.value = page;
+const handlePageChange = (pageInfo: { current: number, pageSize: number }) => {
+  currentPage.value = pageInfo.current;
+  fetchQuestions();
 };
 
 const handleFilterChange = () => {
@@ -145,6 +193,7 @@ const handleFilterChange = () => {
 const router = useRouter();
 
 const handleQuestionClick = (data: { row: { id: string}}) => {
+  console.log(data.row.id);
   if (data.row.id) {
     router.push(`/question/coding/${data.row.id}`);
   }
@@ -153,12 +202,12 @@ const handleQuestionClick = (data: { row: { id: string}}) => {
 // Define table columns
 const columns = [
   {
-    colKey: 'id',
+    colKey: 'leetcode_id',
     title: '编号',
     width: 80,
   },
   {
-    colKey: 'title',
+    colKey: 'title_slug',
     title: '题目',
     width: 200,
   },
@@ -173,29 +222,22 @@ const columns = [
       });
     },
   },
-  {
-    colKey: 'topics',
-    title: '标签',
-    width: 200,
-    cell: (h: any, { row }: { row: any }) => getTopicLabels(row.topics),
-  },
+  // {
+  //   colKey: 'topics',
+  //   title: '标签',
+  //   width: 200,
+  //   cell: (h: any, { row }: { row: any }) => getTopicLabels(row.topics),
+  // },
   {
     colKey: 'status',
     title: '状态',
     width: 100,
     cell: (h: any, { row }: { row: any }) => {
-      return h('t-icon', {
-        props: {
-          name: getStatusIcon(row.status)
-        },
-        style: { color: getStatusColor(row.status) }
+      return h('span', {
+        style: { color: getStatusColor(row.status) },
+        innerHTML: getStatusLabel(row.status)
       });
     },
-  },
-  {
-    colKey: 'pass_rate',
-    title: '通过率',
-    width: 100,
   },
 ];
 </script>
@@ -213,13 +255,6 @@ const columns = [
             :options="difficulties"
             @change="handleFilterChange"
           />
-          <t-select
-            v-model="selectedTopics"
-            multiple
-            placeholder="选择标签"
-            :options="topics"
-            @change="handleFilterChange"
-          />
           <t-input
             v-model="searchQuery"
             placeholder="搜索题目"
@@ -235,14 +270,19 @@ const columns = [
       :columns="columns"
       class="question-table"
       @row-click="handleQuestionClick"
+      :loading="loading"
       :pagination="{
         current: currentPage,
-        pageSize: pageSize,
-        total: filteredQuestions.length,
+        pageSize: 20,
+        total: total,
         onChange: handlePageChange
       }"
       hover
-    />
+    >
+      <template #pagination-right>
+        <div>共 {{ total }} 条数据</div>
+      </template>
+    </t-table>
   </div>
 </template>
 
@@ -257,6 +297,11 @@ const columns = [
 
 :deep(.question-table tbody tr) {
   cursor: pointer;
+}
+
+:deep(.t-table__pagination) {
+  justify-content: center;
+  margin-top: 20px;
 }
 </style>
 
