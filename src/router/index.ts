@@ -16,6 +16,9 @@ import TeacherDashboard from '@/views/teacher/TeacherDashboard.vue'
 import CreateCourse from '@/views/teacher/CreateCourse.vue'
 import CourseChapters from '@/views/teacher/CourseChapters.vue'
 import QuestionList from '../views/question/QuestionList.vue'
+import StudentAnswers from '@/views/teacher/StudentAnswers.vue'
+import StudentAnswerDetail from '@/views/teacher/StudentAnswerDetail.vue'
+import CoursePractice from '@/views/course/CoursePractice.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -122,10 +125,29 @@ const router = createRouter({
       name: 'CreateClass',
       component: () => import('@/views/teacher/CreateClass.vue'),
       meta: { requiresAuth: true }
-    },{
+    },
+    {
       path: '/class/:className/manage',
       name: 'ClassManagement',
       component: () => import('@/views/teacher/ClassManagement.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/course-chapters/:courseId/student-answers/:studentId',
+      name: 'StudentAnswers',
+      component: StudentAnswers,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/course-chapters/:courseId/student-answer-detail/:studentId/:answerId',
+      name: 'StudentAnswerDetail',
+      component: StudentAnswerDetail,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/course-practice/:courseId/:knowledgePointId',
+      name: 'CoursePractice',
+      component: CoursePractice,
       meta: { requiresAuth: true }
     }
   ],

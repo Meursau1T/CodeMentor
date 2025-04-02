@@ -160,8 +160,9 @@ const fetchClassStudents = async (classId: number) => {
         
         name: user.name,
         studentId: user.student_id,
-        correct_rate:user.correct_rate,
-        progress:user.progress,
+        user_id:user.user_id,
+        correct_rate: `${Number(user.correct_rate).toFixed(0)}%`,
+        progress: `${Number(user.progress).toFixed(2)}%`,
         solved_count:user.solved_count,
         wrong_count:user.wrong_count
       }))
@@ -177,6 +178,10 @@ const fetchClassStudents = async (classId: number) => {
 const handleTabChange = (value: number) => {
   activeClassId.value = value
   fetchClassStudents(value) // 确保切换时调用获取学生方法
+}
+
+const handleStudentClick = (row: any) => {
+  router.push(`/course-chapters/${courseId.value}/student-answers/${row.row.user_id}`)
 }
 
 onMounted(() => {
@@ -261,6 +266,7 @@ onMounted(() => {
                         ]"
                         row-key="id"
                         hover
+                        @row-click="handleStudentClick"
                     >
                         <template #id="{ row }">{{ row.id }}</template>
                         <template #name="{ row }">{{ row.name }}</template>

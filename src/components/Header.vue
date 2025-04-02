@@ -22,8 +22,8 @@ const menuItems = computed(() => {
   return [
     { value: ROUTE_NAME.MAIN, label: '首页', to: '/' },
     { value: ROUTE_NAME.COURSE, label: '课程', to: '/course' },
-    { value: ROUTE_NAME.QUESTION, label: '题库', to: '/question' },
-    { value: ROUTE_NAME.AIMENTOR, label: 'AI导师', to: '/ai-mentor' }
+    { value: ROUTE_NAME.QUESTION, label: '题库', to: '/question' }
+    // { value: ROUTE_NAME.AIMENTOR, label: 'AI导师', to: '/ai-mentor' }
   ];
 });
 

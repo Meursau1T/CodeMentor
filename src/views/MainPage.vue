@@ -2,13 +2,42 @@
 /** 主页 */
 import { useUserInfoStore } from '../stores/userInfo'
 import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import Cookies from 'js-cookie'
 
 const userStore = useUserInfoStore();
 const router = useRouter();
+const userStats = ref({
+  learn_progress: 0,
+  solved_problems: 0,
+  username: ''
+});
 
 const goToQuestionBank = () => {
   router.push('/question');
 }
+
+const fetchUserStats = async () => {
+  try {
+    const response = await fetch('http://47.119.38.174:8080/api/users/', {
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`
+      }
+    });
+    const data = await response.json();
+    if (data.result) {
+      userStats.value = data.data;
+    }
+  } catch (error) {
+    console.error('获取用户统计信息失败:', error);
+  }
+}
+
+onMounted(() => {
+  if (userStore.isLogin()) {
+    fetchUserStats();
+  }
+});
 </script>
 
 <template>
@@ -37,25 +66,41 @@ const goToQuestionBank = () => {
     </div>
     
     <div class="right-section" v-if="userStore.isLogin()">
-      <div class="user-info">
-        <t-avatar size="large">{{ userStore.userInfo.name }}</t-avatar>
-        <span class="username">{{ userStore.userInfo.name }}</span>
-      </div>
-      
-      <div class="data-item">
-        <span class="data-label">知识点学习</span>
-        <t-progress :percentage="userStore.userInfo.learningStatus?.knowledge || 0" />
-      </div>
-      
-      <div class="data-item">
-        <span class="data-label">题目练习</span>
-        <span class="data-value">{{ userStore.userInfo.learningStatus?.exercise || 0 }}</span>
-      </div>
-      
-      <div class="data-item">
-        <span class="data-label">笔记记录</span>
-        <span class="data-value">{{ userStore.userInfo.learningStatus?.note || 0 }}</span>
-      </div>
+      <t-card :bordered="true" class="stats-card">
+        <template #title>
+          <div class="user-header">
+            <t-avatar>{{ userStats.username?.slice(0, 1) }}</t-avatar>
+            <span class="username">{{ userStats.username }}</span>
+          </div>
+        </template>
+        
+        <div class="stats-content">
+          <div class="progress-section">
+            <div class="progress-header">
+              <span class="progress-label">学习进度</span>
+              <span class="progress-value">{{ Math.round(userStats.learn_progress * 100) }}%</span>
+            </div>
+            <t-progress
+              :percentage="Math.round(userStats.learn_progress * 100)"
+              :color="{ from: '#0052D9', to: '#00A870' }"
+              :track-color="'#E7E7E7'"
+              :height="8"
+            />
+          </div>
+
+          <div class="solved-section">
+            <t-card :bordered="true" theme="light">
+              <div class="solved-content">
+                <t-icon name="check-circle" size="24px" style="color: #00A870"/>
+                <div class="solved-info">
+                  <div class="solved-count">{{ userStats.solved_problems }}</div>
+                  <div class="solved-label">已解决题目</div>
+                </div>
+              </div>
+            </t-card>
+          </div>
+        </div>
+      </t-card>
     </div>
   </div>
 </template>
@@ -100,36 +145,82 @@ const goToQuestionBank = () => {
 
 .right-section {
   width: 350px;
-  margin-left: 24px;
 }
 
-.user-info {
+.stats-card {
+  background: white;
+  border-radius: 12px;
+}
+
+.user-header {
   display: flex;
   align-items: center;
-  margin-bottom: 36px;
+  gap: 12px;
+  padding: 4px 0;
 }
 
 .username {
-  margin-left: 40px;
   font-size: 16px;
+  font-weight: 500;
   color: #333;
 }
 
-.data-item {
+.stats-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px 0;
+}
+
+.progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
 }
 
-.data-label {
+.progress-label {
+  font-size: 14px;
   color: #666;
-  font-size: 14px;
 }
 
-.data-value {
-  color: #333;
+.progress-value {
   font-size: 14px;
+  color: #0052D9;
+  font-weight: 500;
+}
+
+.solved-section :deep(.t-card) {
+  background: #F9F9F9;
+}
+
+.solved-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px;
+}
+
+.solved-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.solved-count {
+  font-size: 24px;
+  font-weight: 600;
+  color: #00A870;
+}
+
+.solved-label {
+  font-size: 14px;
+  color: #666;
 }
 
 .card-content {

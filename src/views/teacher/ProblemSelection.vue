@@ -73,6 +73,17 @@ const getDifficultyColor = (difficulty: string) => {
   return difficulties.find(d => d.value === difficulty)?.color || '#9CA3AF'
 }
 
+// 添加已选题目列表相关状态
+const selectedListVisible = ref(false)
+const selectedListLoading = ref(false)
+const selectedProblems = ref<{
+  id: number
+  title: string
+  title_cn: string
+  difficulty: string
+  status: string
+}[]>([])
+
 // 获取题库全部题目
 const fetchProblems = async () => {
   try {
@@ -129,7 +140,7 @@ const fetchProblemDetail = async (id: number) => {
     if (!response.ok) throw new Error(data.message || '获取详情失败')
     
     problemDetail.value = {
-      content: data.data.content,
+      content: data.data.content_cn,
       difficulty: data.data.difficulty,
       tags: data.data.tags,
       sample_cases: data.data.sample_cases
@@ -173,6 +184,41 @@ const handleSubmit = async () => {
   }
 }
 
+// 添加获取已选题目列表方法
+const fetchSelectedProblems = async () => {
+  selectedListLoading.value = true
+  try {
+    const response = await fetch(
+      `http://47.119.38.174:8080/api/courses/${courseId.value}/knowledge_points/${chapterKpId.value}/problems/`,
+      {
+        headers: {
+          'Authorization': `Bearer ${Cookies.get('authToken')}`
+        }
+      }
+    )
+    const result = await response.json()
+    if (result.result) {
+      selectedProblems.value = result.data.map(item => ({
+        id: item.id,
+        title: item.title,
+        title_cn: item.title_cn,
+        difficulty: item.difficulty
+      }))
+    }
+  } catch (error) {
+    console.error('获取已选题目失败:', error)
+    MessagePlugin.error('获取已选题目失败')
+  } finally {
+    selectedListLoading.value = false
+  }
+}
+
+// 添加显示已选题目列表方法
+const showSelectedList = () => {
+  selectedListVisible.value = true
+  fetchSelectedProblems()
+}
+
 onMounted(() => {
   fetchProblems()
 })
@@ -184,6 +230,7 @@ onMounted(() => {
       <t-card title="题库选题">
         <template #actions>
           <t-space>
+            <t-button theme="default" @click="showSelectedList">查看已选列表</t-button>
             <t-button @click="$router.go(-1)">返回</t-button>
             <t-button theme="primary" @click="handleSubmit">确认选题</t-button>
           </t-space>
@@ -306,6 +353,43 @@ onMounted(() => {
             style="margin-top: 20px;"
           />
         </t-loading>
+
+        <!-- 添加已选题目列表弹窗 -->
+        <t-dialog
+          v-model:visible="selectedListVisible"
+          header="已选题目列表"
+          width="800px"
+          :footer="false"
+        >
+          <t-loading :loading="selectedListLoading">
+            <t-table
+              :data="selectedProblems"
+              :columns="[
+                { colKey: 'id', title: '题目ID', width: 100 },
+                { colKey: 'title_cn', title: '题目标题' },
+                { 
+                  colKey: 'difficulty', 
+                  title: '难度',
+                  cell: (h, { row }) => h('span', {
+                    style: { color: getDifficultyColor(row.difficulty) },
+                    innerHTML: getDifficultyLabel(row.difficulty)
+                  })
+                }
+                // ，{ 
+                //   colKey: 'status', 
+                //   title: '状态',
+                //   cell: (h, { row }) => h(
+                //     't-tag',
+                //     { theme: row.status === 'SOLVED' ? 'success' : 'warning' },
+                //     { default: () => row.status === 'SOLVED' ? '已解决' : '未解决' }
+                //   )
+                // }
+              ]"
+              :pagination="{ defaultPageSize: 5, total: selectedProblems.length }"
+              hover
+            />
+          </t-loading>
+        </t-dialog>
       </t-card>
     </t-content>
   </t-layout>

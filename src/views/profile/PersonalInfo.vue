@@ -30,7 +30,7 @@ const handlePasswordSubmit = async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${Cookies.get('authToken')}`
       },
       body: JSON.stringify({
         password: formData.value.newPassword

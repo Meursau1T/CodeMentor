@@ -1,108 +1,130 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { computed } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { useUserInfoStore } from '../../stores/userInfo';
 import Cookies from 'js-cookie';
 
-// Mock data
+const userStore = useUserInfoStore();
+const router = useRouter();
+
+// 难度选项
 const difficulties = [
-  { label: '全部', value: 'ALL' },
+  { label: '全部', value: '' },
   { label: '简单', value: 'EASY', color: '#10B981' },
   { label: '中等', value: 'MEDIUM', color: '#F59E0B' },
   { label: '困难', value: 'HARD', color: '#EF4444' }
 ];
 
-
-
-// Reactive states
+// 响应式状态
 const questions = ref([]);
-const selectedDifficulties = ref([]);
-const selectedTopics = ref([]);
+const knowledgePoints = ref([]);
+const loading = ref(false);
+const searchQuery = ref('');
 const currentPage = ref(1);
 const pageSize = ref(20);
-const searchQuery = ref('');
-const total = ref(0);
-const loading = ref(false);
 
-const route = useRoute();
+// 筛选条件
+const filterForm = ref({
+  difficulty: '',
+  knowledgePointId: null as number | null
+});
+
+// 获取知识点列表
+const fetchKnowledgePoints = async () => {
+  const courseId = Number(userStore.userInfo?.courseId);
+  try {
+    const response = await fetch(
+      `http://47.119.38.174:8080/api/courses/${courseId}/knowledge_points/`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${Cookies.get('authToken')}`
+        }
+      }
+    );
+
+    if (!response.ok) throw new Error('获取知识点失败');
+
+    const { result, data } = await response.json();
+    if (result) {
+      knowledgePoints.value = [
+        { id: null, name: '全部' },
+        ...data
+      ];
+    }
+  } catch (error) {
+    console.error('获取知识点失败:', error);
+  }
+};
 
 // 获取题目列表
 const fetchQuestions = async () => {
   loading.value = true;
-  const token = Cookies.get('authToken');
-  
-  const courseId = Number(route.query.courseId);
-  const knowledgePointId = Number(route.query.knowledgePointId);
+  const courseId = Number(userStore.userInfo?.courseId);
 
   try {
-    let url;
-    if (courseId && knowledgePointId) {
-      url = `http://47.119.38.174:8080/api/courses/${courseId}/knowledge_points/${knowledgePointId}/problems/`;
-    } else {
-      url = `http://47.119.38.174:8080/api/courses/${courseId}/problems/`;
+    const body: Record<string, any> = {};
+    
+    if (filterForm.value.difficulty) {
+      body.difficulty = filterForm.value.difficulty;
+    }
+    if (filterForm.value.knowledgePointId) {
+      body.knowledge_point_id = filterForm.value.knowledgePointId;
     }
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `http://47.119.38.174:8080/api/courses/${courseId}/problems/`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Cookies.get('authToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
       }
-    });
+    );
 
-    if (!response.ok) throw new Error('Network response was not ok');
+    if (!response.ok) throw new Error('获取题目失败');
 
-    const { data } = await response.json(); // 直接解构出data字段
-
-    questions.value = data.map(question => ({
-      id: question.id,
-      status: question.status,
-      title_cn: question.title_cn,
-      difficulty: question.difficulty.toUpperCase(),
-      // 其他必要字段或默认值
+    const { result, data } = await response.json();
+    if (result) {
+      // 重置数组以触发响应式更新
+      questions.value = [];
       
-    }));
-    
-    total.value = data.length; // 直接使用数组长度
-
+      // 使用 Set 进行去重
+      const questionSet = new Set(data.map(question => JSON.stringify({
+        id: question.id,
+        status: question.status,
+        title: question.title_cn,
+        difficulty: question.difficulty.toUpperCase(),
+      })));
+      
+      questions.value = Array.from(questionSet).map(q => JSON.parse(q));
+      
+      // 重置分页
+      currentPage.value = 1;
+    }
   } catch (error) {
     console.error('获取题目列表失败:', error);
   } finally {
     loading.value = false;
   }
 };
-// 在组件挂载时获取数据
-onMounted(() => {
-  fetchQuestions();
-});
 
-// Computed properties
+// 处理筛选变化
+const handleFilterChange = async () => {
+  await fetchQuestions();
+};
+
+// 前端搜索和分页
 const filteredQuestions = computed(() => {
-  let result = [...questions.value];
-  console.log(result)
-  // 仅当不是课程练习时应用难度过滤  !route.query.courseId &&
+  if (!searchQuery.value) return questions.value;
   
-  if ( selectedDifficulties.value.length) {
-    result = result.filter(q => selectedDifficulties.value.includes(q.difficulty));
-  }
-  
-  // if (selectedTopics.value.length) {
-  //   result = result.filter(q => 
-  //     q.topics.some(topic => selectedTopics.value.includes(topic))
-  //   );
-  // }
-
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    result = result.filter(q => 
-      q.title_cn.toLowerCase().includes(query)
-    );
-  }
-  
-  return result;
+  const query = searchQuery.value.toLowerCase();
+  return questions.value.filter(q => 
+    q.title.toLowerCase().includes(query)
+  );
 });
-
-const totalPages = computed(() => Math.ceil(filteredQuestions.value.length / pageSize.value));
 
 const paginatedQuestions = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
@@ -110,7 +132,26 @@ const paginatedQuestions = computed(() => {
   return filteredQuestions.value.slice(start, end);
 });
 
-// Methods
+const total = computed(() => filteredQuestions.value.length);
+
+// 处理分页变化
+const handlePageChange = (pageInfo: { current: number, pageSize: number }) => {
+  currentPage.value = pageInfo.current;
+};
+
+// 处理行点击
+const handleQuestionClick = (data: { row: { id: string } }) => {
+  if (data.row.id) {
+    router.push({
+      path: '/question/coding',
+      query: {
+        questionId: data.row.id
+      }
+    });
+  }
+};
+
+// 状态和难度显示处理
 const getStatusLabel = (status: string) => {
   switch (status) {
     case 'SOLVED':
@@ -127,11 +168,11 @@ const getStatusLabel = (status: string) => {
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'SOLVED':
-      return '#67C23A';  // 绿色
+      return '#67C23A';
     case 'TRIED':
-      return '#E6A23C';  // 橙色
+      return '#E6A23C';
     case 'UNTRIED':
-      return '#909399';  // 灰色
+      return '#909399';
     default:
       return '#909399';
   }
@@ -147,42 +188,7 @@ const getDifficultyColor = (difficulty: string) => {
   return diff ? diff.color : '#9CA3AF';
 };
 
-const getTopicLabels = (topicValues: string[]) => {
-  return topicValues
-    .map(value => topics.find(t => t.value === value)?.label)
-    .filter(Boolean)
-    .join(', ');
-};
-
-const handlePageChange = (pageInfo: { current: number, pageSize: number }) => {
-  currentPage.value = pageInfo.current;
-  fetchQuestions();
-};
-
-const handleFilterChange = () => {
-  currentPage.value = 1;
-};
-
-const router = useRouter();
-
-const handleQuestionClick = (data: { row: { id: string}}) => {
-  
-  if (data.row.id) {
-    const knowledgePointId = Number(route.query.knowledgePointId);
-    const questionId  = data.row.id
-    router.push({
-    path: '/question/coding',
-    query: {
-      questionId,
-      knowledgePointId  // 使用原始知识点ID而不是索引
-    }
-  })
-
-    //router.push(`/question/coding/${data.row.id}`);
-  }
-};
-
-// Define table columns
+// 表格列定义
 const columns = [
   {
     colKey: 'id',
@@ -190,7 +196,7 @@ const columns = [
     width: 80,
   },
   {
-    colKey: 'title_cn',
+    colKey: 'title',
     title: '题目',
     width: 200,
   },
@@ -217,25 +223,39 @@ const columns = [
     },
   },
 ];
+
+// 初始化
+onMounted(() => {
+  fetchKnowledgePoints();
+  fetchQuestions();
+});
 </script>
 
 <template>
   <div class="question-list">
-    <!-- 过滤器区域 -->
+    <!-- 筛选器区域 -->
     <div class="filters">
       <t-space direction="vertical" size="large">
         <t-space>
           <t-select
-            v-model="selectedDifficulties"
-            multiple
+            v-model="filterForm.difficulty"
             placeholder="选择难度"
             :options="difficulties"
             @change="handleFilterChange"
+            style="width: 200px"
+          />
+          <t-select
+            v-model="filterForm.knowledgePointId"
+            placeholder="选择知识点"
+            :options="knowledgePoints"
+            :keys="{label: 'name', value: 'id'}"
+            @change="handleFilterChange"
+            style="width: 200px"
           />
           <t-input
             v-model="searchQuery"
             placeholder="搜索题目"
-            @change="handleFilterChange"
+            style="width: 200px"
           />
         </t-space>
       </t-space>
@@ -245,16 +265,16 @@ const columns = [
     <t-table
       :data="paginatedQuestions"
       :columns="columns"
-      class="question-table"
-      @row-click="handleQuestionClick"
       :loading="loading"
       :pagination="{
         current: currentPage,
-        pageSize: 20,
+        pageSize: pageSize,
         total: total,
         onChange: handlePageChange
       }"
       hover
+      @row-click="handleQuestionClick"
+      :row-key="id"
     >
       <template #pagination-right>
         <div>共 {{ total }} 条数据</div>
