@@ -26,6 +26,7 @@ export const useUserInfoStore = defineStore('userInfo', () => {
   const setUserInfo = (info: UserInfo) => {
     userInfo.value = info
     Cookies.set('userInfo', JSON.stringify(info))
+    console.log('userInfo', userInfo.value)
   }
 
   const isLogin = () => {

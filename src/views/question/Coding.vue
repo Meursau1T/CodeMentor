@@ -6,11 +6,11 @@ import Cookies from 'js-cookie';
 
 const route = useRoute();
 const router = useRouter();
-const questionId = ref(Number(route.params.id));
+const questionId = ref(Number(route.query.questionId));
 
 // Interface for the API response
 interface ProblemDetail {
-  content: string;
+  content_cn: string;
   difficulty: string;
   id: number;
   knowledge_point_info: any;
@@ -21,7 +21,7 @@ interface ProblemDetail {
     problems: any;
     knowledge_point_id: number;
   }>;
-  title: string;
+  title_cn: string;
   title_slug: string;
 }
 
@@ -129,30 +129,36 @@ const isAnalyzing = ref(false);
 const isCorrecting = ref(false);
 
 // 检查判题结果
-const checkResult = async (id: Number) => {
-  const url = `http://47.119.38.174:8080/api/leetcode/check/${id}/`;
+const checkResult = async (id: number, flag: boolean = false) => {
+  const url = `http://47.119.38.174:8080/api/leetcode/check/`;
   const token = Cookies.get('authToken');
   
-  const MAX_RETRIES = 30;
+  const MAX_RETRIES = 50;
   const POLLING_INTERVAL = 1000;
   let retryCount = 0;
 
   const poll = async (): Promise<any> => {
     try {
       const response = await fetch(url, {
-        method: 'GET',
+        method: 'POST', // 改为 POST 请求
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          run_code_id: id.toString(), // 确保是字符串类型
+          test: flag
+        })
       });
 
       const data = await response.json();
       
       if (data.result && data.data) {
         // 如果状态是PENDING或STARTED，并且未超过最大重试次数，继续轮询
+        console.log(data)
         if ((data.data.state === 'PENDING' || data.data.state === 'STARTED') && retryCount < MAX_RETRIES) {
           retryCount++;
+          console.log(retryCount,"hihi")
           await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
           return poll();
         }
@@ -213,7 +219,7 @@ const runTest = async () => {
     const data = await response.json();
     if (data.result && data.data && data.data.interpret_id) {
       // 等待并获取判题结果
-      const result = await checkResult(data.data.interpret_id);
+      const result = await checkResult(data.data.interpret_id,true);
       if (result) {
         testResult.value = {
           show: true,
@@ -242,7 +248,7 @@ const runTest = async () => {
 };
 
 // 修改分析代码函数
-const analyzeCode = async () => {
+const analyzeCode = async (id:number) => {
   isAnalyzing.value = true;
   const url = 'http://47.119.38.174:8080/api/ai/analyze_code/';
   const token = Cookies.get('authToken');
@@ -257,7 +263,8 @@ const analyzeCode = async () => {
       body: JSON.stringify({
         problem_id: questionId.value,
         language: selectedLanguage.value,
-        typed_code: userCode.value
+        typed_code: userCode.value,
+        record_id:id
       })
     });
 
@@ -298,7 +305,7 @@ const analyzeCode = async () => {
   }
 };
 
-const correctCode = async () => {
+const correctCode = async (id:number) => {
   isCorrecting.value = true;
   const url = 'http://47.119.38.174:8080/api/ai/correct_code/';
   const token = Cookies.get('authToken');
@@ -313,7 +320,8 @@ const correctCode = async () => {
       body: JSON.stringify({
         problem_id: questionId.value,
         language: selectedLanguage.value,
-        typed_code: userCode.value
+        typed_code: userCode.value,
+        record_id:id
       })
     });
 
@@ -351,7 +359,7 @@ const submitAnswer = async () => {
   isSubmitting.value = true;
   const url = 'http://47.119.38.174:8080/api/leetcode/submit/';
   const token = Cookies.get('authToken');
-
+  const knowledgePointId = Number(route.query.knowledgePointId);
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -362,14 +370,15 @@ const submitAnswer = async () => {
       body: JSON.stringify({
         lang: selectedLanguage.value,
         leetcode_question_id: questionId.value,
-        typed_code: userCode.value
+        typed_code: userCode.value,
+        knowledgePointId: knowledgePointId
       })
     });
 
     const data = await response.json();
-    if (data.result && data.data && data.data.submission_id) {
+    if (data.result && data.data && data.data.submission_id && data.data.record_id) {
       // 等待并获取判题结果
-      const result = await checkResult(data.data.submission_id);
+      const result = await checkResult(data.data.submission_id,false);
       console.log(result);
       if (result) {
         isSubmitted.value = true;
@@ -385,9 +394,9 @@ const submitAnswer = async () => {
 
         // 如果提交成功，只分析代码
         // 如果提交失败，分析代码并获取纠错建议
-        await analyzeCode();
+        await analyzeCode(data.data.record_id);
         if (!result.status_msg === 'Accepted') {
-          await correctCode();
+          await correctCode(data.data.record_id);
         }
       }
     }
@@ -479,21 +488,21 @@ const showAIChat = ref(false);
     <div class="question-section">
       <div class="nav-bar">
         <h2>题目描述</h2>
-        <t-button theme="primary" @click="goToNextQuestion">
+        <!-- <t-button theme="primary" @click="goToNextQuestion">
           下一题
           <template #suffix><t-icon name="chevron-right" /></template>
-        </t-button>
+        </t-button> -->
       </div>
 
       <div class="content">
         <div class="title-section">
-          <h1>{{ question.title }}</h1>
+          <h1>{{ question.title_cn }}</h1>
           <span :class="['difficulty-tag', question.difficulty.toLowerCase()]">
             {{ question.difficulty }}
           </span>
         </div>
 
-        <div class="description" v-html="question.content">
+        <div class="description" v-html="question.content_cn">
         </div>
 
         <!-- Tags section -->
@@ -589,6 +598,8 @@ const showAIChat = ref(false);
 
     <AIChatDialog
       v-model:visible="showAIChat"
+      :problem-id="questionId"
+      :typed-code="userCode"
     />
   </div>
 </template>

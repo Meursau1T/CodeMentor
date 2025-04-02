@@ -12,6 +12,10 @@ import Profile from '../views/profile/Profile.vue'
 import PersonalInfo from '../views/profile/PersonalInfo.vue'
 import AnswerHistory from '../views/profile/AnswerHistory.vue'
 import AnswerDetail from '../views/profile/AnswerDetail.vue'
+import TeacherDashboard from '@/views/teacher/TeacherDashboard.vue'
+import CreateCourse from '@/views/teacher/CreateCourse.vue'
+import CourseChapters from '@/views/teacher/CourseChapters.vue'
+import QuestionList from '../views/question/QuestionList.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -41,7 +45,7 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/question/coding/:id',
+      path: '/question/coding',
       name: 'coding',
       component: Coding,
       meta: { requiresAuth: true }
@@ -82,6 +86,47 @@ const router = createRouter({
       path: '/teacher-dashboard',
       component: () => import('../views/teacher/TeacherDashboard.vue'),
       meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/problems',
+      name: 'ProblemList',
+      component: QuestionList,
+      meta: { 
+        title: '题库',
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/teacher',
+      name: 'TeacherDashboard',
+      component: TeacherDashboard
+    },
+    {
+      path: '/create-course',
+      name: 'CreateCourse',
+      component: CreateCourse
+    },
+    {
+      path: '/course/:id/chapters',
+      name: 'CourseChapters',
+      component: CourseChapters,
+      props: true
+    },
+    {
+      path: '/question-selection/:courseId/:chapterKpId',
+      component: () => import('@/views/teacher/ProblemSelection.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/create-class',
+      name: 'CreateClass',
+      component: () => import('@/views/teacher/CreateClass.vue'),
+      meta: { requiresAuth: true }
+    },{
+      path: '/class/:className/manage',
+      name: 'ClassManagement',
+      component: () => import('@/views/teacher/ClassManagement.vue'),
+      meta: { requiresAuth: true }
     }
   ],
 })

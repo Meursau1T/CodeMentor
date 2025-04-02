@@ -1,70 +1,44 @@
 <script setup lang="ts">
-/** 课程页面 */
-const courseObj = [
-  {
-    title: '基础概念',
-    subtopics: [
-      { title: '常量与变量' },
-      { title: '数据类型' },
-      { title: '运算符' },
-      { title: '控制结构' },
-      { title: '函数' },
-      { title: '数组' },
-      { title: '字符串' },
-    ]
-  },
-  {
-    title: '控制结构',
-    subtopics: [
-      { title: 'if语句' },
-      { title: 'for循环' },
-      { title: 'while循环' },
-      { title: 'do-while循环' },
-      { title: 'switch语句' },
-      { title: 'break和continue' },
-    ]
-  },
-  {
-    title: '函数',
-    subtopics: [
-      { title: '函数定义' },
-      { title: '函数调用' },
-      { title: '参数传递' },
-      { title: '返回值' },
-      { title: '递归' },
-      { title: '匿名函数' },
-      { title: '高阶函数' },
-    ]
-  },
-  {
-    title: '指针',
-    subtopics: [
-      { title: '指针定义' },
-      { title: '指针初始化' },
-      { title: '指针操作' },
-      { title: '多维指针' },
-      { title: '指针遍历' },
-    ]
-  },
-  {
-    title: '结构体',
-    subtopics: [
-      { title: '结构体定义' },
-      { title: '结构体初始化' },
-      { title: '结构体操作' },
-      { title: '结构体遍历' },
-    ]
-  },
-  {
-    title: '文件操作',
-    subtopics: [
-      { title: '文件打开' },
-      { title: '文件读取' },
-      { title: '文件写入' },
-      { title: '文件关闭' },
-    ]
+import { ref, onMounted } from 'vue'
+import Cookies from 'js-cookie'
+import { useUserInfoStore } from '../stores/userInfo'
+import { useRouter } from 'vue-router'
+
+
+const userStore = useUserInfoStore()
+const router = useRouter()
+const courseObj = ref<Array<{ title: string, subtopics: any[], id: string }>>([])
+const loading = ref(false);
+// 获取知识点数据
+onMounted(async () => {
+  try {
+    const courseId = userStore.userInfo?.courseId
+    if (!courseId) return
+
+    const response = await fetch(`http://47.119.38.174:8080/api/courses/${courseId}/knowledge_points/`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${Cookies.get('authToken')}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const data = await response.json()
+    if (data.result) {
+      courseObj.value = data.data.map(item => ({
+        title: item.name,
+        subtopics: [],
+        id: item.id
+      }))
+    }
+  } catch (error) {
+    console.error('获取知识点失败:', error)
   }
-]
+});
+
 const statsList = [
   {
     icon: 'chart',
@@ -87,6 +61,20 @@ const statsList = [
     value: '5'
   }
 ]
+
+const handlePractice = (id: string) => {
+  const courseId = userStore.userInfo?.courseId
+  if (!courseId) return
+
+  // 直接使用知识点的真实ID
+  router.push({
+    path: '/problems',
+    query: {
+      courseId,
+      knowledgePointId: id  // 使用原始知识点ID而不是索引
+    }
+  })
+}
 </script>
 
 <template>
@@ -96,9 +84,8 @@ const statsList = [
       <t-divider style="margin: 8px 0"></t-divider>
       <t-tree
         :data="courseObj"
-        :expand-all="false"
+        expand-all
         hover
-        transition
         activable
         line
         :keys="{
@@ -106,10 +93,15 @@ const statsList = [
           label: 'title',
           children: 'subtopics'
         }"
-        class="custom-tree"
+        class="flat-tree"
       >
         <template #operations="{ node }">
-          <span v-if="node.getLevel() !== 0" class="operation-btn">{{ "去练习" }}</span>
+          <span 
+            class="operation-btn"
+            @click="handlePractice(node.data.id)"
+          >
+            去练习
+          </span>
         </template>
       </t-tree>
     </div>
@@ -183,28 +175,26 @@ const statsList = [
   margin-bottom: 4px;
 }
 
-.custom-tree :deep(.t-tree__item[data-level="0"]) {
-  font-size: 18px;
-  color: #333333;
+.flat-tree :deep(.t-tree__item) {
+  font-size: 16px;
+  color: #333;
+  padding: 8px 0;
 }
 
-.custom-tree :deep(.t-tree__item[data-level="1"]) {
-  font-size: 16px;
-  color: #666666;
+.flat-tree :deep(.t-tree__icon) {
+  display: none;
 }
 
 .operation-btn {
+  margin-left: 12px;
   font-size: 14px;
-  cursor: pointer;
   color: #0052d9;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
 
 .operation-btn:hover {
-  background-color: rgba(0, 82, 217, 0.1);
-  transform: scale(1.05);
+  opacity: 0.8;
 }
 
 .list-item {

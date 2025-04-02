@@ -1,114 +1,88 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-
+import { useUserInfoStore } from '../../stores/userInfo'
+import Cookies from 'js-cookie';
 const route = useRoute();
 const router = useRouter();
-const answerId = route.params.id;
-
+const answerId = Number(route.params.id);
+const userStore = useUserInfoStore()
+const courseId = userStore.userInfo?.courseId
 // 用于存储答题记录的数据
 const answerRecord = ref({
   question: {
-    title: '',
+    title_cn: '',
     difficulty: '',
-    description: '',
-    examples: [],
-    hints: []
+    content_cn: ''
   },
   userAnswer: {
-    code: '',
-    submitTime: '',
-    status: ''
+    code: ''
   },
   aiCorrection: {
-    code: '',
-    explanation: ''
+    analysis: ''
   },
   solution: {
-    code: '',
-    explanation: ''
+    code: ''
   }
 });
 
 onMounted(async () => {
   try {
     // TODO: 调用API获取答题记录详情
-    // const response = await getAnswerDetail(answerId);
-    // answerRecord.value = response.data;
-    
-    // Mock data
+
+  const url = `http://47.119.38.174:8080/api/courses/${courseId}/records/${answerId}/`;
+  const token = Cookies.get('authToken');
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Network response was not ok ' + response.statusText);
+    }
+
+    const { data } = await response.json();
+    // 数据结构映射
     answerRecord.value = {
       question: {
-        title: "两数之和",
-        difficulty: "简单",
-        description: `给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出和为目标值的那两个整数，并返回它们的数组下标。
-你可以假设每种输入只会对应一个答案。但是，数组中同一个元素在答案里不能重复出现。`,
-        examples: [
-          {
-            input: "nums = [2,7,11,15], target = 9",
-            output: "[0,1]",
-            explanation: "因为 nums[0] + nums[1] == 9 ，返回 [0, 1]"
-          }
-        ],
-        hints: ["可以使用哈希表来优化时间复杂度"]
+        title_cn: data.title_cn,
+        difficulty: data.difficulty,
+        content_cn: data.content_cn
       },
       userAnswer: {
-        code: `function twoSum(nums, target) {
-  for (let i = 0; i < nums.length; i++) {
-    for (let j = i + 1; j < nums.length; j++) {
-      if (nums[i] + nums[j] === target) {
-        return [i, j];
-      }
-    }
-  }
-  return [];
-}`,
-        submitTime: '2024-03-10 10:30:00',
-        status: '已通过'
+        code: data.typed_code
       },
       aiCorrection: {
-        code: `// 优化后的代码：使用哈希表降低时间复杂度
-function twoSum(nums, target) {
-  const map = new Map();
-  for (let i = 0; i < nums.length; i++) {
-    const complement = target - nums[i];
-    if (map.has(complement)) {
-      return [map.get(complement), i];
-    }
-    map.set(nums[i], i);
-  }
-  return [];
-}`,
-        explanation: "您的解法使用了嵌套循环，时间复杂度为O(n²)。建议使用哈希表优化查找过程，可以将时间复杂度降低到O(n)。"
+        analysis: data.wrong_reason_and_analyze
       },
       solution: {
-        code: `function twoSum(nums, target) {
-  const map = new Map();
-  for (let i = 0; i < nums.length; i++) {
-    const complement = target - nums[i];
-    if (map.has(complement)) {
-      return [map.get(complement), i];
-    }
-    map.set(nums[i], i);
-  }
-  return [];
-}`,
-        explanation: `本题主要考察以下知识点：
-1. 哈希表的使用
-2. 时间复杂度优化
-3. 数组遍历技巧
-
-解题思路：
-1. 使用哈希表存储已遍历过的数字及其下标
-2. 对于当前数字，计算目标值与其的差值
-3. 如果差值存在于哈希表中，说明找到了答案
-4. 否则将当前数字及其下标存入哈希表`
+        code: data.corrected_code
       }
     };
+  } catch (error) {
+    console.error('获取题目详情失败:', error);
+  }
+   
   } catch (error) {
     console.error('Failed to fetch answer detail:', error);
   }
 });
+// 处理加粗文本和数学公式的函数
+const processBoldText = (text: string) => {
+  // 首先处理数学公式
+  text = text.replace(/\\\(([^\\]+)\\\)/g, '($1)');
+  
+  // 处理特殊的数学符号
+  text = text.replace(/\\cdot/g, '·');
+  
+  // 处理加粗文本
+  return text.replace(/\*\*([\d.]+|\S[^*]*?\S)\*\*/g, '<strong>$1</strong>');
+};
 </script>
 
 <template>
@@ -123,17 +97,16 @@ function twoSum(nums, target) {
     <!-- 题目描述区域 -->
     <div class="question-section">
       <div class="title-section">
-        <h1>{{ answerRecord.question.title }}</h1>
+        <h1>{{ answerRecord.question.title_cn }}</h1>
         <span :class="['difficulty-tag', answerRecord.question.difficulty]">
           {{ answerRecord.question.difficulty }}
         </span>
       </div>
 
-      <div class="description">
-        {{ answerRecord.question.description }}
+      <div class="description"v-html="answerRecord.question.content_cn">
       </div>
 
-      <div class="examples">
+      <!-- <div class="examples">
         <div v-for="(example, index) in answerRecord.question.examples" 
              :key="index" 
              class="example-card">
@@ -144,16 +117,16 @@ function twoSum(nums, target) {
             解释：{{ example.explanation }}
           </div>
         </div>
-      </div>
+      </div> -->
 
-      <div class="hints">
+      <!-- <div class="hints">
         <div class="hint-title">提示：</div>
         <ul>
           <li v-for="(hint, index) in answerRecord.question.hints" :key="index">
             {{ hint }}
           </li>
         </ul>
-      </div>
+      </div> -->
     </div>
 
     <!-- 用户答案区域 -->
@@ -161,10 +134,10 @@ function twoSum(nums, target) {
       <div class="section-card">
         <h3>我的提交</h3>
         <div class="submission-info">
-          <t-tag :theme="answerRecord.userAnswer.status === '已通过' ? 'success' : 'danger'">
+          <!-- <t-tag :theme="answerRecord.userAnswer.status === '已通过' ? 'success' : 'danger'">
             {{ answerRecord.userAnswer.status }}
-          </t-tag>
-          <span class="submit-time">提交时间：{{ answerRecord.userAnswer.submitTime }}</span>
+          </t-tag> -->
+          <!-- <span class="submit-time">提交时间：{{ answerRecord.userAnswer.submitTime }}</span> -->
         </div>
         <t-card :bordered="true" theme="default">
           <pre class="code-block">{{ answerRecord.userAnswer.code }}</pre>
@@ -176,29 +149,30 @@ function twoSum(nums, target) {
         <h3>AI 代码优化建议</h3>
         <t-card :bordered="true" theme="default">
           <t-space direction="vertical">
-            <pre class="code-block">{{ answerRecord.aiCorrection.code }}</pre>
-            <p class="explanation-text">{{ answerRecord.aiCorrection.explanation }}</p>
+            <!-- <pre class="code-block">{{ answerRecord.aiCorrection.code }}</pre> -->
+            <div class="explanation-text" v-html="processBoldText(answerRecord.aiCorrection.analysis)"></div>
+            <!-- <p class="explanation-text">{{ answerRecord.aiCorrection.analysis }}</p> -->
           </t-space>
         </t-card>
       </div>
 
       <!-- 标准解答 -->
-      <div class="section-card">
+      <!-- <div class="section-card">
         <h3>参考解答</h3>
         <t-card :bordered="true" theme="default">
           <pre class="code-block">{{ answerRecord.solution.code }}</pre>
         </t-card>
-      </div>
+      </div> -->
 
       <!-- 知识点讲解 -->
-      <div class="section-card">
+      <!-- <div class="section-card">
         <h3>知识点讲解</h3>
         <t-card :bordered="true" theme="default">
           <div class="explanation-text" style="white-space: pre-line">
             {{ answerRecord.solution.explanation }}
           </div>
         </t-card>
-      </div>
+      </div> -->
     </div>
   </div>
 </template>
@@ -219,6 +193,12 @@ function twoSum(nums, target) {
   padding: 24px;
   margin-bottom: 24px;
 }
+.explanation-text {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #4B5563;
+  white-space: pre-line; /* 保留换行符 */
+}
 
 .title-section {
   display: flex;
@@ -238,15 +218,15 @@ function twoSum(nums, target) {
   color: white;
 }
 
-.difficulty-tag.简单 {
+.difficulty-tag.Easy {
   background-color: #10B981;
 }
 
-.difficulty-tag.中等 {
+.difficulty-tag.Medium {
   background-color: #F59E0B;
 }
 
-.difficulty-tag.困难 {
+.difficulty-tag.Hard {
   background-color: #EF4444;
 }
 

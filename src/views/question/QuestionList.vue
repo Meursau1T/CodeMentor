@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import Cookies from 'js-cookie';
 
 // Mock data
@@ -12,48 +12,7 @@ const difficulties = [
   { label: '困难', value: 'HARD', color: '#EF4444' }
 ];
 
-const topics = [
-  { label: '数组', value: 'array' },
-  { label: '字符串', value: 'string' },
-  { label: '链表', value: 'linked-list' },
-  { label: '二叉树', value: 'binary-tree' },
-  { label: '动态规划', value: 'dp' },
-  { label: '回溯算法', value: 'backtracking' }
-];
 
-// Updated mock data with tags and consistent difficulty values
-const mockQuestions = [
-  {
-    id: 1,
-    leetcode_id: 1,
-    title: "两数之和",
-    title_slug: "two-sum",
-    difficulty: "EASY",
-    topics: ["array", "hash-table"],
-    status: "SOLVED",
-    pass_rate: "46.5%"
-  },
-  {
-    id: 2,
-    leetcode_id: 2,
-    title: "最长回文子串",
-    title_slug: "longest-palindromic-substring",
-    difficulty: "MEDIUM",
-    topics: ["string", "dp"],
-    status: "ATTEMPTED",
-    pass_rate: "35.8%"
-  },
-  {
-    id: 3,
-    leetcode_id: 3,
-    title: "N皇后",
-    title_slug: "n-queens",
-    difficulty: "HARD",
-    topics: ["backtracking"],
-    status: "NOT_STARTED",
-    pass_rate: "25.2%"
-  }
-];
 
 // Reactive states
 const questions = ref([]);
@@ -65,41 +24,53 @@ const searchQuery = ref('');
 const total = ref(0);
 const loading = ref(false);
 
+const route = useRoute();
+
 // 获取题目列表
 const fetchQuestions = async () => {
   loading.value = true;
-  const url = 'http://47.119.38.174:8080/api/problems/';
-  const token = Cookies.get('authToken'); // Retrieve token from cookies
+  const token = Cookies.get('authToken');
+  
+  const courseId = Number(route.query.courseId);
+  const knowledgePointId = Number(route.query.knowledgePointId);
 
   try {
+    let url;
+    if (courseId && knowledgePointId) {
+      url = `http://47.119.38.174:8080/api/courses/${courseId}/knowledge_points/${knowledgePointId}/problems/`;
+    } else {
+      url = `http://47.119.38.174:8080/api/courses/${courseId}/problems/`;
+    }
+
     const response = await fetch(url, {
-      method: 'POST',
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({})
+      }
     });
 
-    if (!response.ok) {
-      throw new Error('Network response was not ok ' + response.statusText);
-    }
+    if (!response.ok) throw new Error('Network response was not ok');
 
-    const data = await response.json();
-    questions.value = data.data.map(question => ({
-      ...question,
+    const { data } = await response.json(); // 直接解构出data字段
+
+    questions.value = data.map(question => ({
+      id: question.id,
+      status: question.status,
+      title_cn: question.title_cn,
       difficulty: question.difficulty.toUpperCase(),
-      topics: [],
-      status: question.status
+      // 其他必要字段或默认值
+      
     }));
-    total.value = data.total || questions.value.length;
+    
+    total.value = data.length; // 直接使用数组长度
+
   } catch (error) {
     console.error('获取题目列表失败:', error);
   } finally {
     loading.value = false;
   }
 };
-
 // 在组件挂载时获取数据
 onMounted(() => {
   fetchQuestions();
@@ -108,21 +79,23 @@ onMounted(() => {
 // Computed properties
 const filteredQuestions = computed(() => {
   let result = [...questions.value];
+  console.log(result)
+  // 仅当不是课程练习时应用难度过滤  !route.query.courseId &&
   
-  if (selectedDifficulties.value.length) {
+  if ( selectedDifficulties.value.length) {
     result = result.filter(q => selectedDifficulties.value.includes(q.difficulty));
   }
   
-  if (selectedTopics.value.length) {
-    result = result.filter(q => 
-      q.topics.some(topic => selectedTopics.value.includes(topic))
-    );
-  }
+  // if (selectedTopics.value.length) {
+  //   result = result.filter(q => 
+  //     q.topics.some(topic => selectedTopics.value.includes(topic))
+  //   );
+  // }
 
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     result = result.filter(q => 
-      q.title_slug.toLowerCase().includes(query)
+      q.title_cn.toLowerCase().includes(query)
     );
   }
   
@@ -193,21 +166,31 @@ const handleFilterChange = () => {
 const router = useRouter();
 
 const handleQuestionClick = (data: { row: { id: string}}) => {
-  console.log(data.row.id);
+  
   if (data.row.id) {
-    router.push(`/question/coding/${data.row.id}`);
+    const knowledgePointId = Number(route.query.knowledgePointId);
+    const questionId  = data.row.id
+    router.push({
+    path: '/question/coding',
+    query: {
+      questionId,
+      knowledgePointId  // 使用原始知识点ID而不是索引
+    }
+  })
+
+    //router.push(`/question/coding/${data.row.id}`);
   }
 };
 
 // Define table columns
 const columns = [
   {
-    colKey: 'leetcode_id',
+    colKey: 'id',
     title: '编号',
     width: 80,
   },
   {
-    colKey: 'title_slug',
+    colKey: 'title_cn',
     title: '题目',
     width: 200,
   },
@@ -222,12 +205,6 @@ const columns = [
       });
     },
   },
-  // {
-  //   colKey: 'topics',
-  //   title: '标签',
-  //   width: 200,
-  //   cell: (h: any, { row }: { row: any }) => getTopicLabels(row.topics),
-  // },
   {
     colKey: 'status',
     title: '状态',

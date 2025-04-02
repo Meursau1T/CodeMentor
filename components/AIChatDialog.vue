@@ -6,7 +6,7 @@
         <div v-for="(message, index) in messages" 
              :key="index" 
              :class="['message', message.type === 'user' ? 'user-message' : 'ai-message']">
-          {{ message.content }}
+          <div class="markdown-content" v-html="formatMessage(message.content)"></div>
         </div>
       </div>
 
@@ -34,9 +34,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import Cookies from 'js-cookie';
 
 const props = defineProps({
-  visible: Boolean
+  visible: Boolean,
+  problemId: Number,
+  typedCode: String
 });
 
 const emit = defineEmits(['update:visible']);
@@ -52,7 +55,7 @@ const handleOverlayClick = () => {
 };
 
 // 发送消息
-const sendMessage = () => {
+const sendMessage = async () => {
   if (!inputMessage.value.trim()) return;
   
   // 添加用户消息
@@ -61,15 +64,52 @@ const sendMessage = () => {
     content: inputMessage.value
   });
 
-  // 模拟AI回复
-  setTimeout(() => {
+  const loadingMessage = {
+    type: 'ai',
+    content: 'AI正在思考中...',
+    loading: true
+  };
+  messages.value.push(loadingMessage);
+  scrollToBottom();
+
+  try {
+    const response = await fetch('http://47.119.38.174:8080/api/ai/chat/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        problem_id: props.problemId,
+        question: inputMessage.value,
+        typed_code: props.typedCode
+      })
+    });
+
+    const data = await response.json();
+    // 移除加载中的消息
+    messages.value = messages.value.filter(m => !m.loading);
+    
+    if (data.result) {
+      messages.value.push({
+        type: 'ai',
+        content: data.data.message.replace(/\n/g, '<br>')
+      });
+    } else {
+      messages.value.push({
+        type: 'ai',
+        content: '获取回答失败，请稍后再试'
+      });
+    }
+  } catch (error) {
+    console.error('请求失败:', error);
+    messages.value = messages.value.filter(m => !m.loading);
     messages.value.push({
       type: 'ai',
-      content: '这是一个模拟的AI回复消息。'
+      content: '网络请求失败，请检查连接'
     });
-    scrollToBottom();
-  }, 1000);
-
+  }
+  
   inputMessage.value = '';
   adjustTextareaHeight();
   scrollToBottom();
@@ -90,6 +130,18 @@ const adjustTextareaHeight = () => {
   element.style.height = 'auto';
   element.style.height = `${element.scrollHeight}px`;
 };
+
+// 格式化消息内容
+const formatMessage = (content) => {
+  return content
+    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')  // 代码块优先处理
+    .replace(/###\s+(.*)/g, '<h3>$1</h3>')                      // 三级标题
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')          // 加粗文本
+    .replace(/(^|\n)([-*])\s+(.*)/g, '$1<li>$3</li>')          // 列表项
+    .replace(/(<li>.*<\/li>)+/g, '<ul>$&</ul>')                // 包裹无序列表
+    .replace(/\n/g, '<br>')                                    // 普通换行处理
+    .replace(/<h3>/g, '<h3>🔹 ');                              // 为标题添加装饰符号
+};
 </script>
 
 <style scoped>
@@ -108,7 +160,7 @@ const adjustTextareaHeight = () => {
 
 .chat-dialog {
   width: 80%;
-  max-width: 600px;
+  /* max-width: 600px; */
   height: 80vh;
   background: white;
   border-radius: 8px;
@@ -198,5 +250,51 @@ const adjustTextareaHeight = () => {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'/%3E%3C/svg%3E");
   background-size: contain;
   background-repeat: no-repeat;
+}
+
+.markdown-content {
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.markdown-content ul {
+  list-style-type: disc;
+  padding-left: 24px;
+  margin: 12px 0;
+}
+
+.markdown-content li {
+  margin: 6px 0;
+  line-height: 1.5;
+  color: #666;
+}
+
+.markdown-content h3 {
+  color: #1a73e8;
+  margin: 20px 0 12px;
+  font-size: 1.2em;
+  border-left: 4px solid #1a73e8;
+  padding-left: 8px;
+}
+
+.markdown-content pre {
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 12px 0;
+  border: 1px solid #e9ecef;
+}
+
+.markdown-content strong {
+  color: #1a73e8;
+  font-weight: 600;
+  padding: 2px 4px;
+  background-color: #f3f8ff;
+  border-radius: 4px;
+}
+
+.ai-message .markdown-content pre {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
 }
 </style> 

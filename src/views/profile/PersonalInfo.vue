@@ -2,7 +2,9 @@
 import { ref } from 'vue';
 import { useUserInfoStore } from '../../stores/userInfo';
 import { MessagePlugin } from 'tdesign-vue-next';
-
+import Cookies from 'js-cookie';
+import { useRouter } from 'vue-router'
+const router = useRouter()
 const userStore = useUserInfoStore();
 const passwordVisible = ref(false);
 const showPasswordDialog = ref(false);
@@ -21,14 +23,33 @@ const handlePasswordSubmit = async () => {
     MessagePlugin.error('两次输入的密码不一致');
     return;
   }
-  
+
   try {
-    // TODO: 调用API修改密码
-    await userStore.changePassword(formData.value);
-    MessagePlugin.success('密码修改成功，请重新登录');
+    const token = Cookies.get('authToken');
+    const response = await fetch('http://47.119.38.174:8080/api/users/reset_password/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        password: formData.value.newPassword
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || '密码重置失败');
+    }
+
+    alert('密码修改成功，请重新登录');
+    // 清除用户状态和token
     userStore.logout();
+    // 跳转到登录页
+    router.push('/login');
   } catch (error) {
-    MessagePlugin.error('密码修改失败');
+    console.error('密码重置错误:', error);
+    alert('密码修改失败');
   }
 };
 </script>
