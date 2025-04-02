@@ -371,7 +371,7 @@ const submitAnswer = async () => {
         lang: selectedLanguage.value,
         leetcode_question_id: questionId.value,
         typed_code: userCode.value,
-        knowledgePointId: knowledgePointId
+        knowledge_point_id: knowledgePointId
       })
     });
 
