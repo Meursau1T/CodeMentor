@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Cookies from 'js-cookie'
 import * as echarts from 'echarts'
+// import { MessagePlugin } from 'tdesign-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +44,14 @@ const chartContainer = ref<HTMLElement | null>(null)
 const pieChartContainer = ref<HTMLElement | null>(null)
 let barChart: echarts.ECharts | null = null
 let pieChart: echarts.ECharts | null = null
+
+// 添加新的响应式变量
+const tagDialogVisible = ref(false)
+const currentKnowledgePointId = ref(0)
+const allTags = ref<Array<{ ID: number; name: string; name_cn: string }>>([])
+const aiRecommendTags = ref<Array<{ ID: number; name: string; name_cn: string }>>([])
+const selectedTagIds = ref<number[]>([])
+const tagLoading = ref(false)
 
 // Mock数据，后续替换为实际API调用
 const fetchCourseDetail = async () => {
@@ -338,6 +347,94 @@ const handleResize = () => {
   }
 }
 
+// 获取所有标签
+const fetchAllTags = async () => {
+  try {
+    const response = await fetch('http://47.119.38.174:8080/api/problems/tags/', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`
+      }
+    })
+    const data = await response.json()
+    if (data.result) {
+      allTags.value = data.data
+    }
+  } catch (error) {
+    console.error('获取标签列表失败:', error)
+  }
+}
+
+// 获取AI推荐标签
+const fetchAIRecommendTags = async (knowledgePointId: number) => {
+  try {
+    const response = await fetch(
+      `http://47.119.38.174:8080/api/courses/${courseId.value}/knowledge_points/${knowledgePointId}/ai/suggest_tags/`, 
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${Cookies.get('authToken')}`
+        }
+      }
+    )
+    const data = await response.json()
+    if (data.result) {
+      aiRecommendTags.value = data.data.tags
+    }
+  } catch (error) {
+    console.error('获取AI推荐标签失败:', error)
+  }
+}
+
+// 处理标签点击
+const handleTagClick = (tagId: number) => {
+  const index = selectedTagIds.value.indexOf(tagId)
+  if (index === -1) {
+    selectedTagIds.value.push(tagId)
+  } else {
+    selectedTagIds.value.splice(index, 1)
+  }
+}
+
+// 处理关联知识点按钮点击
+const handleAssociateTags = (knowledgePointId: number) => {
+  currentKnowledgePointId.value = knowledgePointId
+  tagDialogVisible.value = true
+  selectedTagIds.value = []
+  fetchAllTags()
+  fetchAIRecommendTags(knowledgePointId)
+}
+
+// 提交关联标签
+const handleSubmitTags = async () => {
+  tagLoading.value = true
+  try {
+    const response = await fetch(
+      `http://47.119.38.174:8080/api/courses/${courseId.value}/knowledge_points/${currentKnowledgePointId.value}/tags/`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Cookies.get('authToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          tag_ids: selectedTagIds.value
+        })
+      }
+    )
+    const data = await response.json()
+    if (data.result) {
+      alert(`成功添加${data.data.added_count}个标签，当前共${data.data.total_count}个标签`)
+      tagDialogVisible.value = false
+    }
+  } catch (error) {
+    console.error('提交标签失败:', error)
+    alert('提交标签失败')
+  } finally {
+    tagLoading.value = false
+  }
+}
+
 onMounted(() => {
   fetchCourseDetail()
   fetchCourseClasses()
@@ -383,8 +480,8 @@ onUnmounted(() => {
             :data="course.chapters"
             :columns="[
               { colKey: 'id', title: '章节序号', width: 100 },
-              { colKey: 'name', title: '章节名称' },
-            //   { colKey: 'questionCount', title: '关联题目数', width: 120 },
+              { colKey: 'name', title: '章节名称', width: 100 },
+           
               { colKey: 'operation', title: '操作', width: 120 }
             ]"
             row-key="id"
@@ -397,13 +494,23 @@ onUnmounted(() => {
               {{ row.questionCount }} 道题目
             </template> -->
             <template #operation="{ row }">
+              <t-space>
               <t-button
-                variant="text"
-                theme="primary"
-                @click="handleEditQuestions(row.kpId)"
-              >
-                编辑题目
-              </t-button>
+                  variant="text"
+                  theme="primary"
+                  @click="handleAssociateTags(row.kpId)"
+                >
+                  关联知识点
+                </t-button>
+                <t-button
+                  variant="text"
+                  theme="primary"
+                  @click="handleEditQuestions(row.kpId)"
+                >
+                   编辑题目
+                </t-button>
+                
+              </t-space>
             </template>
           </t-table>
         </t-loading>
@@ -473,6 +580,51 @@ onUnmounted(() => {
           <div ref="pieChartContainer" class="chart"></div>
         </div>
       </t-dialog>
+
+      <t-dialog
+        v-model:visible="tagDialogVisible"
+        
+        :width="700"
+        :footer="true"
+        :confirm-btn="{ loading: tagLoading, content: '确认关联' }"
+        :on-confirm="handleSubmitTags"
+        @close="tagDialogVisible = false"
+      >
+        <t-space direction="vertical" size="large" style="width: 100%">
+          <!-- 可选标签部分 -->
+          <div class="tag-section">
+            <h3 class="section-title">关联知识点标签</h3>
+            <div class="tag-container">
+              <t-tag
+                v-for="tag in allTags"
+                :key="tag.ID"
+                :theme="selectedTagIds.includes(tag.ID) ? 'primary' : 'default'"
+                :variant="selectedTagIds.includes(tag.ID) ? 'light' : 'outline'"
+                style="margin: 4px; cursor: pointer"
+                @click="handleTagClick(tag.ID)"
+              >
+                {{ tag.name_cn || tag.name }}
+              </t-tag>
+            </div>
+          </div>
+
+          <!-- AI推荐标签部分 -->
+          <div class="tag-section">
+            <h3 class="section-title">AI推荐标签</h3>
+            <div class="tag-container">
+              <t-tag
+                v-for="tag in aiRecommendTags"
+                :key="tag.ID"
+                theme="warning"
+                variant="light"
+                style="margin: 4px"
+              >
+                {{ tag.name_cn || tag.name }}
+              </t-tag>
+            </div>
+          </div>
+        </t-space>
+      </t-dialog>
     </t-content>
   </t-layout>
 </template>
@@ -506,5 +658,32 @@ onUnmounted(() => {
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.tag-section {
+  padding: 16px;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.section-title {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.tag-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+:deep(.t-tag) {
+  transition: all 0.3s;
+}
+
+:deep(.t-tag:hover) {
+  opacity: 0.8;
 }
 </style> 
