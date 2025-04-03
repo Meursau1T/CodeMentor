@@ -12,11 +12,13 @@
   },
   "dependencies": {
     "axios": "^1.8.4",
+    "echarts": "^5.6.0",
     "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.2",
     "pinia": "^2.3.1",
     "tdesign-vue-next": "^1.10.7",
     "vue": "^3.5.13",
+    "vue-echarts": "^7.0.3",
     "vue-router": "^4.5.0",
     "xlsx": "^0.18.5"
   },

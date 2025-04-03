@@ -51,6 +51,44 @@ const fetchQuestionDetail = async (id: number) => {
     console.error('获取题目详情失败:', error);
   }
 };
+const hintLoading = ref(false);
+const showHint = ref(false);
+const hint = ref('');
+
+// 修改获取提示的方法
+const getHint = async () => {
+  showHint.value = true;
+  hintLoading.value = true;
+  const url = 'http://47.119.38.174:8080/api/ai/generate_hint/';
+  const token = Cookies.get('authToken');
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title: question.value.title_cn,
+        content: question.value.content_cn,
+        sample_testcases:question.value.sample_cases,
+        model_type:"qwen"
+      })
+    });
+    if (!response.ok) {
+      throw new Error('Network response was not ok ' + response.statusText);
+    }
+
+    const {data}  = await response.json();
+    console.log(data);
+    hint.value = processBoldText(data.code);
+  } catch (error) {
+    console.error('获取提示失败:', error);
+    hint.value = '获取提示失败，请稍后重试';
+  } finally {
+    hintLoading.value = false;
+  }
+}
 
 // Load question details on mount and when ID changes
 onMounted(() => {
@@ -86,25 +124,10 @@ const testResult = ref({
 const isSubmitted = ref(false);
 const isCorrect = ref(false);
 
-const solution = {
-  code: `function twoSum(nums, target) {
-  const map = new Map();
-  for (let i = 0; i < nums.length; i++) {
-    const complement = target - nums[i];
-    if (map.has(complement)) {
-      return [map.get(complement), i];
-    }
-    map.set(nums[i], i);
-  }
-  return [];
-}`,
-  explanation: `本题主要考察以下知识点：
-1. 哈希表的使用
-2. 时间复杂度优化
-3. 数组遍历技巧`
-};
-
-const aiCorrection = ref('');
+const aiCorrection = ref({
+  qwen: '',
+  deepseek: ''
+});
 
 // 添加编程语言选项
 const programmingLanguages = [
@@ -247,99 +270,16 @@ const runTest = async () => {
   }
 };
 
-// 修改分析代码函数
-const analyzeCode = async (id:number) => {
-  isAnalyzing.value = true;
-  const url = 'http://47.119.38.174:8080/api/ai/analyze_code/';
-  const token = Cookies.get('authToken');
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        problem_id: questionId.value,
-        language: selectedLanguage.value,
-        typed_code: userCode.value,
-        record_id:id
-      })
-    });
-
-    const data = await response.json();
-    if (data.result && data.data && data.data.message) {
-      const message = data.data.message;
-      // 使用 "AI讲师分析" 分割消息
-      const parts = message.split('**AI讲师分析**');
-      
-      // 提取错误分析和讲师分析的内容
-      const errorPart = parts[0].replace('**错误分析**：', '').trim();
-      const teacherPart = parts[1]?.replace('：', '').trim() || '';
-
-      // 提取花括号中的内容
-      const extractContent = (text: string) => {
-        const match = text.match(/\{([^}]+)\}/);
-        return match ? match[1].trim() : text.trim();
-      };
-
-      aiAnalysis.value = {
-        errorAnalysis: extractContent(errorPart),
-        teacherAnalysis: extractContent(teacherPart)
-      };
-    } else {
-      aiAnalysis.value = {
-        errorAnalysis: '',
-        teacherAnalysis: '暂时无法获取分析结果，请稍后重试。'
-      };
-    }
-  } catch (error) {
-    console.error('分析代码失败:', error);
-    aiAnalysis.value = {
-      errorAnalysis: '',
-      teacherAnalysis: '分析过程出现错误，请稍后重试。'
-    };
-  } finally {
-    isAnalyzing.value = false;
-  }
-};
-
-const correctCode = async (id:number) => {
-  isCorrecting.value = true;
-  const url = 'http://47.119.38.174:8080/api/ai/correct_code/';
-  const token = Cookies.get('authToken');
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        problem_id: questionId.value,
-        language: selectedLanguage.value,
-        typed_code: userCode.value,
-        record_id:id
-      })
-    });
-
-    const data = await response.json();
-    if (data.result) {
-      aiCorrection.value = data.data.code;
-    }
-  } catch (error) {
-    console.error('获取纠错代码失败:', error);
-  } finally {
-    isCorrecting.value = false;
-  }
-};
-
-// 新增响应式变量
+// 添加新的响应式变量
 const aiAnalysis = ref({
-  errorAnalysis: '',
-  teacherAnalysis: ''
+  qwen: {
+    errorAnalysis: '',
+    teacherAnalysis: ''
+  },
+  deepseek: {
+    errorAnalysis: '',
+    teacherAnalysis: ''
+  }
 });
 
 // 处理加粗文本和数学公式的函数
@@ -395,7 +335,7 @@ const submitAnswer = async () => {
         // 如果提交成功，只分析代码
         // 如果提交失败，分析代码并获取纠错建议
         await analyzeCode(data.data.record_id);
-        if (!result.status_msg === 'Accepted') {
+        if (result.status_msg !== 'Accepted') {
           await correctCode(data.data.record_id);
         }
       }
@@ -426,6 +366,103 @@ const goToNextQuestion = () => {
 };
 
 const showAIChat = ref(false);
+
+const selectedAnalysisModel = ref('qwen'); // 用于知识点讲解的模型选择
+const selectedCorrectionModel = ref('qwen'); // 用于代码纠错的模型选择
+
+// 添加模型选项
+const modelOptions = [
+  { value: 'qwen', label: '千问' },
+  { value: 'deepseek', label: 'Deepseek' }
+];
+
+// 分析代码
+const analyzeCode = async (recordId: number) => {
+  isAnalyzing.value = true;
+  try {
+    const response = await fetch(`http://47.119.38.174:8080/api/ai/analyze_code/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        problem_id: questionId.value,
+        language: selectedLanguage.value,
+        typed_code: userCode.value,
+        record_id: recordId
+      })
+    });
+
+    const data = await response.json();
+    if (data.result) {
+      // 处理千问模型返回
+      const qwenMessage = data.data.qwen_wrong_reason_and_analyze;
+      const qwenParts = qwenMessage.split('**AI讲师分析**');
+      const qwenErrorPart = qwenParts[0].replace('**错误分析**：', '').trim();
+      const qwenTeacherPart = qwenParts[1]?.replace('：', '').trim() || '';
+
+      // 处理Deepseek模型返回
+      const deepseekMessage = data.data.deepseek_wrong_reason_and_analyze;
+      const deepseekParts = deepseekMessage.split('**AI讲师分析**');
+      const deepseekErrorPart = deepseekParts[0].replace('**错误分析**：', '').trim();
+      const deepseekTeacherPart = deepseekParts[1]?.replace('：', '').trim() || '';
+
+      // 提取花括号中的内容
+      const extractContent = (text: string) => {
+        const match = text.match(/\{([^}]+)\}/);
+        return match ? match[1].trim() : text.trim();
+      };
+
+      aiAnalysis.value = {
+        qwen: {
+          errorAnalysis: extractContent(qwenErrorPart),
+          teacherAnalysis: extractContent(qwenTeacherPart)
+        },
+        deepseek: {
+          errorAnalysis: extractContent(deepseekErrorPart),
+          teacherAnalysis: extractContent(deepseekTeacherPart)
+        }
+      };
+    }
+  } catch (error) {
+    console.error('获取代码分析失败:', error);
+  } finally {
+    isAnalyzing.value = false;
+  }
+};
+
+// 纠错代码
+const correctCode = async (recordId: number) => {
+  isCorrecting.value = true;
+  try {
+    const response = await fetch(`http://47.119.38.174:8080/api/ai/correct_code/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        problem_id: questionId.value,
+        language: selectedLanguage.value,
+        typed_code: userCode.value,
+        record_id: recordId
+      })
+    });
+
+    const data = await response.json();
+    if (data.result) {
+      aiCorrection.value = {
+        qwen: data.data.qwen_corrected_code,
+        deepseek: data.data.deepseek_corrected_code
+      };
+    }
+  } catch (error) {
+    console.error('获取代码纠错失败:', error);
+  } finally {
+    isCorrecting.value = false;
+  }
+};
 </script>
 
 <template>
@@ -500,6 +537,16 @@ const showAIChat = ref(false);
           <span :class="['difficulty-tag', question.difficulty.toLowerCase()]">
             {{ question.difficulty }}
           </span>
+          <t-button theme="primary" @click="getHint">
+            提示
+          </t-button>
+
+          <!-- 添加提示弹窗 -->
+          <t-dialog v-model:visible="showHint" header="提示" theme="default">
+            <t-loading :loading="hintLoading">
+              <div v-if="!hintLoading" v-html="hint"></div>
+            </t-loading>
+          </t-dialog>
         </div>
 
         <div class="description" v-html="question.content_cn">
@@ -528,6 +575,7 @@ const showAIChat = ref(false);
       <div class="answer-header">
         <h2>用户作答</h2>
         <t-select
+          label="语言："
           v-model="selectedLanguage"
           :options="programmingLanguages"
           :style="{ width: '150px' }"
@@ -559,7 +607,15 @@ const showAIChat = ref(false);
       <template v-if="isSubmitted">
         <!-- 如果答案错误，显示AI纠错 -->
         <div v-if="!isCorrect" class="result-section">
-          <h3>AI 代码纠错</h3>
+          <div class="section-header">
+            <h3>AI 代码纠错</h3>
+            <t-select
+              label="模型："
+              v-model="selectedCorrectionModel"
+              :options="modelOptions"
+              :style="{ width: '160px' }"
+            />
+          </div>
           <t-card :bordered="true" theme="default">
             <template v-if="isCorrecting || isAnalyzing">
               <div class="loading-container">
@@ -568,8 +624,8 @@ const showAIChat = ref(false);
               </div>
             </template>
             <t-space v-else direction="vertical">
-              <div class="explanation-text" v-html="processBoldText(aiAnalysis.errorAnalysis)"></div>
-              <pre class="code-block">{{ aiCorrection }}</pre>
+              <div class="explanation-text" v-html="processBoldText(aiAnalysis[selectedCorrectionModel].errorAnalysis)"></div>
+              <pre class="code-block">{{ aiCorrection[selectedCorrectionModel] }}</pre>
             </t-space>
           </t-card>
         </div>
@@ -578,6 +634,12 @@ const showAIChat = ref(false);
         <div class="knowledge-section">
           <div class="section-header">
             <h3>知识点讲解</h3>
+            <t-select
+              label="模型："
+              v-model="selectedAnalysisModel"
+              :options="modelOptions"
+              :style="{ width: '160px' }"
+            />
             <button class="ask-ai-button" @click="showAIChat = true">
               ？有疑问点击请教AI老师
             </button>
@@ -589,7 +651,7 @@ const showAIChat = ref(false);
                 <p>AI 正在总结知识点，请稍候...</p>
               </div>
             </template>
-            <div v-else class="explanation-text" v-html="processBoldText(aiAnalysis.teacherAnalysis)">
+            <div v-else class="explanation-text" v-html="processBoldText(aiAnalysis[selectedAnalysisModel].teacherAnalysis)">
             </div>
           </t-card>
         </div>
@@ -814,25 +876,28 @@ const showAIChat = ref(false);
 .section-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 16px;
-  justify-content: flex-start;
-  gap: 20px;
+}
+
+.section-header h3 {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+:deep(.t-select) {
+  flex-shrink: 0;
 }
 
 .ask-ai-button {
   padding: 6px 12px;
   border: none;
-  background-color: #1a73e8;
+  background-color:#1a73e8;
   color: white;
-  border-radius: 4px;
+  border-radius:4px;
   cursor: pointer;
-  transition: background-color 0.2s;
-  font-size: 14px;
-}
-
-.ask-ai-button:hover {
-  background-color: #1557b0;
+  transition:background-color 0.2s;font-size: 14px;
+  margin-left:0px
 }
 
 .tags-section {
@@ -934,16 +999,6 @@ const showAIChat = ref(false);
 :deep(.explanation-text .math) {
   font-family: 'Times New Roman', serif;
   padding: 0 4px;
-}
-
-.code-block {
-  font-family: Monaco, Consolas, monospace;
-  background-color: #F3F4F6;
-  padding: 16px;
-  border-radius: 4px;
-  overflow-x: auto;
-  white-space: pre;
-  margin-top: 12px;
 }
 
 .result-details {

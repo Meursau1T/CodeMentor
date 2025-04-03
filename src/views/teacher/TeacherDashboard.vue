@@ -164,7 +164,7 @@ onMounted(() => {
                   <template #footer>
                     <t-space align="center" style="width: 100%">
                       <t-button variant="text" theme="primary">
-                        管理章节 >>
+                        管理课程 >>
                       </t-button>
                     </t-space>
                   </template>
@@ -200,22 +200,19 @@ onMounted(() => {
               :key="`class-${index}`" 
               :span="8"
             >
-              <t-card class="course-card" hover>
-                <div class="card-content">
-                  <div class="card-header">
-                    <h3>{{ className }}</h3>
-                  </div>
+              <t-card class="course-card" hover :title="className">
+                
                   <div class="card-footer">
                     <t-button 
                       theme="primary" 
                       size="medium" 
                       variant="text"
-                      @click="router.push(`/class/${className}/manage`)"
+                      @click="router.push(`/class/${className}/${index+1}/manage`)"
                     >
                       <template #icon><t-icon name="setting" /></template>
                       管理班级>>
                     </t-button>
-                  </div>
+                  
                 </div>
               </t-card>
             </t-col>

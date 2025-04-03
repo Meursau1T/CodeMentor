@@ -6,27 +6,55 @@
         <div v-for="(message, index) in messages" 
              :key="index" 
              :class="['message', message.type === 'user' ? 'user-message' : 'ai-message']">
+          <div class="message-header" v-if="message.type === 'ai'">
+            <span class="ai-model">{{ message.model === 'qwen' ? '千问' : 'Deepseek' }} AI</span>
+          </div>
           <div class="markdown-content" v-html="formatMessage(message.content)"></div>
         </div>
       </div>
 
-      <!-- 输入操作栏 -->
-      <div class="chat-input-area">
-        <textarea 
-          v-model="inputMessage"
-          class="message-input"
-          placeholder="输入你的问题..."
-          @keydown.ctrl.enter="sendMessage"
-          @input="adjustTextareaHeight"
-          ref="textarea"
-        ></textarea>
-        <button 
-          class="send-button" 
-          :disabled="!inputMessage.trim()"
-          @click="sendMessage"
-        >
-          <i class="send-icon"></i>
-        </button>
+      <!-- 底部操作区域 -->
+      <div class="chat-footer">
+        <!-- 模型选择器 -->
+        <div class="model-selector">
+          <t-radio-group v-model="selectedModel" variant="default-filled">
+            <t-radio-button value="qwen">
+              <template #default>
+                <t-space>
+                  <t-icon name="chat" />
+                  千问
+                </t-space>
+              </template>
+            </t-radio-button>
+            <t-radio-button value="deepseek">
+              <template #default>
+                <t-space>
+                  <t-icon name="explore" />
+                  Deepseek
+                </t-space>
+              </template>
+            </t-radio-button>
+          </t-radio-group>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="chat-input-area">
+          <textarea 
+            v-model="inputMessage"
+            class="message-input"
+            placeholder="输入你的问题..."
+            @keydown.ctrl.enter="sendMessage"
+            @input="adjustTextareaHeight"
+            ref="textarea"
+          ></textarea>
+          <button 
+            class="send-button" 
+            :disabled="!inputMessage.trim()"
+            @click="sendMessage"
+          >
+            <i class="send-icon"></i>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -35,6 +63,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import Cookies from 'js-cookie';
+import { MessagePlugin } from 'tdesign-vue-next';
 
 const props = defineProps({
   visible: Boolean,
@@ -48,6 +77,7 @@ const inputMessage = ref('');
 const messages = ref([]);
 const messagesContainer = ref(null);
 const textarea = ref(null);
+const selectedModel = ref('qwen'); // 默认使用千问模型
 
 // 处理遮罩层点击
 const handleOverlayClick = () => {
@@ -67,7 +97,8 @@ const sendMessage = async () => {
   const loadingMessage = {
     type: 'ai',
     content: 'AI正在思考中...',
-    loading: true
+    loading: true,
+    model: selectedModel.value
   };
   messages.value.push(loadingMessage);
   scrollToBottom();
@@ -82,7 +113,8 @@ const sendMessage = async () => {
       body: JSON.stringify({
         problem_id: props.problemId,
         question: inputMessage.value,
-        typed_code: props.typedCode
+        typed_code: props.typedCode,
+        model_type: selectedModel.value
       })
     });
 
@@ -93,21 +125,16 @@ const sendMessage = async () => {
     if (data.result) {
       messages.value.push({
         type: 'ai',
-        content: data.data.message.replace(/\n/g, '<br>')
+        content: data.data.message.replace(/\n/g, '<br>'),
+        model: selectedModel.value
       });
     } else {
-      messages.value.push({
-        type: 'ai',
-        content: '获取回答失败，请稍后再试'
-      });
+      MessagePlugin.error('获取回答失败，请稍后再试');
     }
   } catch (error) {
     console.error('请求失败:', error);
     messages.value = messages.value.filter(m => !m.loading);
-    messages.value.push({
-      type: 'ai',
-      content: '网络请求失败，请检查连接'
-    });
+    MessagePlugin.error('网络请求失败，请检查连接');
   }
   
   inputMessage.value = '';
@@ -200,12 +227,40 @@ const formatMessage = (content) => {
   border-bottom-right-radius: 4px;
 }
 
-.chat-input-area {
-  padding: 16px;
+.chat-footer {
   border-top: 1px solid #e0e0e0;
+  padding: 12px 16px;
+  background: #f8f9fa;
+}
+
+.model-selector {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.message-header {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.ai-model {
+  background: #e8f0fe;
+  padding: 2px 8px;
+  border-radius: 12px;
+  color: #1a73e8;
+  font-weight: 500;
+}
+
+.chat-input-area {
   display: flex;
   align-items: flex-end;
   gap: 8px;
+  background: white;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .message-input {
@@ -214,34 +269,42 @@ const formatMessage = (content) => {
   max-height: 120px;
   padding: 10px 16px;
   border: 1px solid #e0e0e0;
-  border-radius: 24px;
+  border-radius: 8px;
   resize: none;
   outline: none;
-  font-family: 'Roboto', sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 15px;
+  transition: border-color 0.2s;
+}
+
+.message-input:focus {
+  border-color: #1a73e8;
 }
 
 .send-button {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   background-color: #1a73e8;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s, background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .send-button:hover {
   background-color: #1557b0;
-  transform: scale(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .send-button:disabled {
-  background-color: #cccccc;
+  background-color: #e0e0e0;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .send-icon {
@@ -296,5 +359,32 @@ const formatMessage = (content) => {
 .ai-message .markdown-content pre {
   background-color: #ffffff;
   border: 1px solid #e0e0e0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:deep(.t-radio-group) {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+:deep(.t-radio-button) {
+  min-width: 120px;
+  transition: all 0.2s ease;
+}
+
+:deep(.t-radio-button.t-is-checked) {
+  background-color: #1a73e8;
+  color: white;
 }
 </style> 
