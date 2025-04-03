@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Cookies from 'js-cookie'
-
+import * as echarts from 'echarts'
 
 const route = useRoute()
 const router = useRouter()
@@ -38,6 +38,12 @@ const activeClassId = ref<number>(0)
 const classList = ref<{ id: number; name: string }[]>([])
 const students = ref<{ id: number; name: string; student_id: string }[]>([])
 const classLoading = ref(false)
+const statsDialogVisible = ref(false)
+const chartContainer = ref<HTMLElement | null>(null)
+const pieChartContainer = ref<HTMLElement | null>(null)
+let barChart: echarts.ECharts | null = null
+let pieChart: echarts.ECharts | null = null
+
 // Mock数据，后续替换为实际API调用
 const fetchCourseDetail = async () => {
   loading.value = true
@@ -184,16 +190,170 @@ const handleStudentClick = (row: any) => {
   router.push(`/course-chapters/${courseId.value}/student-answers/${row.row.user_id}`)
 }
 
+// 添加获取统计数据的方法
+const fetchCourseStats = async () => {
+  try {
+    const response = await fetch(`http://47.119.38.174:8080/api/courses/${courseId.value}/problems/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    })
+    const data = await response.json()
+    
+    if (data.result) {
+      // 计算难度分布
+      const difficultyCount = {
+        Easy: 0,
+        Medium: 0,
+        Hard: 0
+      }
+      
+      data.data.forEach((problem: any) => {
+        difficultyCount[problem.difficulty]++
+      })
+      
+      // 绘制图表
+      drawCharts(data.data.length, difficultyCount)
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+  }
+}
+
+// 绘制图表的方法
+const drawCharts = (totalProblems: number, difficultyCount: any) => {
+  // 绘制条形图
+  if (barChart) {
+    barChart.dispose()
+  }
+  barChart = echarts.init(chartContainer.value!)
+  barChart.setOption({
+    title: {
+      text: '课程题目统计',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: ['题目总数']
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [
+      {
+        name: '题目数量',
+        type: 'bar',
+        data: [totalProblems],
+        itemStyle: {
+          color: '#0052D9'
+        }
+      }
+    ]
+  })
+
+  // 绘制饼图
+  if (pieChart) {
+    pieChart.dispose()
+  }
+  pieChart = echarts.init(pieChartContainer.value!)
+  pieChart.setOption({
+    title: {
+      text: '难度分布',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left'
+    },
+    series: [
+      {
+        name: '难度分布',
+        type: 'pie',
+        radius: '50%',
+        data: [
+          { value: difficultyCount.Easy, name: '简单', itemStyle: { color: '#10B981' } },
+          { value: difficultyCount.Medium, name: '中等', itemStyle: { color: '#F59E0B' } },
+          { value: difficultyCount.Hard, name: '困难', itemStyle: { color: '#EF4444' } }
+        ],
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        }
+      }
+    ]
+  })
+}
+
+// 处理弹窗显示
+const handleShowStats = () => {
+  statsDialogVisible.value = true
+  // 等待DOM更新后初始化图表
+  setTimeout(() => {
+    fetchCourseStats()
+  }, 100)
+}
+
+// 处理弹窗关闭
+const handleCloseStats = () => {
+  statsDialogVisible.value = false
+  if (barChart) {
+    barChart.dispose()
+    barChart = null
+  }
+  if (pieChart) {
+    pieChart.dispose()
+    pieChart = null
+  }
+}
+
+// 监听窗口大小变化
+const handleResize = () => {
+  if (barChart) {
+    barChart.resize()
+  }
+  if (pieChart) {
+    pieChart.resize()
+  }
+}
+
 onMounted(() => {
   fetchCourseDetail()
   fetchCourseClasses()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  handleCloseStats()
 })
 </script>
 
 <template>
   <t-layout>
     <t-content class="content-inner">
-      <t-card :bordered="true">
+      <t-card :bordered="true" >
         <template #title>
           <t-space>
             <t-button
@@ -207,12 +367,15 @@ onMounted(() => {
               返回
             </t-button>
             <t-divider layout="vertical" />
-            <span class="course-title">{{ course.name }}</span>
+            <span class="course-title">知识点目录</span>
           </t-space>
         </template>
 
         <template #actions>
-          <t-button theme="primary" @click="() => { dialogVisible = true; fetchClasses() }">添加班级</t-button>
+          <t-space>
+            <t-button theme="default" @click="handleShowStats">统计信息</t-button>
+            <t-button theme="primary" @click="() => { dialogVisible = true; fetchClasses() }">添加班级</t-button>
+          </t-space>
         </template>
 
         <t-loading :loading="loading">
@@ -297,6 +460,19 @@ onMounted(() => {
           </t-checkbox>
         </t-checkbox-group>
       </t-dialog>
+
+      <t-dialog
+        v-model:visible="statsDialogVisible"
+        header="课程统计信息"
+        :width="800"
+        :footer="false"
+        @close="handleCloseStats"
+      >
+        <div class="stats-container">
+          <div ref="chartContainer" class="chart"></div>
+          <div ref="pieChartContainer" class="chart"></div>
+        </div>
+      </t-dialog>
     </t-content>
   </t-layout>
 </template>
@@ -315,5 +491,20 @@ onMounted(() => {
 
 .class-card {
   margin-top: 20px;
+}
+
+.stats-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px;
+}
+
+.chart {
+  width: 100%;
+  height: 300px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 </style> 
