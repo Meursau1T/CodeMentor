@@ -109,7 +109,7 @@ const createStudents = async () => {
 
     if (failedItems.length === 0) {
       alert(`成功创建 ${successCount} 个学生账号`)
-      
+      fetchClassStudents()
       fileData.value = []
     } else {
       // 构造错误详情信息
@@ -253,7 +253,10 @@ onMounted(() => {
     </t-breadcrumb>
 
     <!-- 返回按钮 -->
-    <t-button variant="text" @click="router.push('/teacher-dashboard?tab=classes')" class="back-btn">
+    <t-button variant="text" @click="router.push({
+      path: '/teacher-dashboard',
+      query: { tab: 'classes' }
+    })" class="back-btn">
       <template #icon><t-icon name="chevron-left" /></template>
       返回班级列表
     </t-button>

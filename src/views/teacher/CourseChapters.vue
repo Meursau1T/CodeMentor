@@ -437,7 +437,7 @@ const handleSubmitTags = async () => {
     )
     const data = await response.json()
     if (data.result) {
-      alert(`成功添加${data.data.added_count}个标签，当前共${data.data.total_count}个标签`)
+      alert(`成功添加${data.data.added_tags}个标签，当前共${data.data.total_tags}个标签`)
       tagDialogVisible.value = false
     }
   } catch (error) {

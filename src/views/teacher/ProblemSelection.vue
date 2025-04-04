@@ -248,8 +248,8 @@ const handleSubmit = async () => {
     const data = await response.json()
     if (!response.ok) throw new Error(data.message || '提交失败')
     
-    MessagePlugin.success(`成功添加${data.data.added_count}个题目，当前共${data.data.total_count}题`)
-    alert(`成功添加"${data.data.added_count}"个题目，当前共"${data.data.total_count}"题`)
+    MessagePlugin.success(`成功添加${data.data.added_count}个题目，当前共${data.data.total_problems}题`)
+    alert(`成功添加"${data.data.added_count}"个题目，当前共"${data.data.total_problems}"题`)
   } catch (error) {
     console.error('提交选题失败:', error)
     alert(error.message || '选题保存失败')

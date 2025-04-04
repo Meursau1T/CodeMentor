@@ -69,7 +69,10 @@ const handleSubmit = async () => {
 
           <t-form-item>
             <t-space>
-              <t-button theme="default" @click="router.back()">
+              <t-button theme="default" @click="router.push({
+                path: '/teacher-dashboard',
+                query: { tab: 'classes' }
+              })">
                 返回
               </t-button>
               <t-button

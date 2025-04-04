@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { PlusIcon } from 'tdesign-icons-vue-next'
 import Cookies from 'js-cookie'
 
 const router = useRouter()
+const route = useRoute()
 const isCollapsed = ref(false)
 const activeModule = ref('courses') // 'courses' | 'classes'
 
@@ -84,6 +85,10 @@ const handleCreateClass = () => {
 }
 
 onMounted(() => {
+  // 根据 URL 参数设置活动模块
+  if (route.query.tab === 'classes') {
+    activeModule.value = 'classes'
+  }
   fetchCourses()
   fetchClasses()
 })

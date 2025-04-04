@@ -13,6 +13,7 @@ interface ProblemDetail {
   content_cn: string;
   difficulty: string;
   id: number;
+  is_custom: boolean;
   knowledge_point_info: any;
   sample_cases: string;
   tags: Array<{
@@ -53,7 +54,11 @@ const fetchQuestionDetail = async (id: number) => {
 };
 const hintLoading = ref(false);
 const showHint = ref(false);
-const hint = ref('');
+const hint = ref({
+  qwen: '',
+  deepseek: ''
+});
+const selectedHintModel = ref('qwen');
 
 // 修改获取提示的方法
 const getHint = async () => {
@@ -61,30 +66,55 @@ const getHint = async () => {
   hintLoading.value = true;
   const url = 'http://47.119.38.174:8080/api/ai/generate_hint/';
   const token = Cookies.get('authToken');
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        title: question.value.title_cn,
-        content: question.value.content_cn,
-        sample_testcases:question.value.sample_cases,
-        model_type:"qwen"
-      })
-    });
-    if (!response.ok) {
-      throw new Error('Network response was not ok ' + response.statusText);
-    }
 
-    const {data}  = await response.json();
-    console.log(data);
-    hint.value = processBoldText(data.code);
+  try {
+    // 并行请求两个模型的结果
+    const [qwenResponse, deepseekResponse] = await Promise.all([
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: question.value.title_cn,
+          content: question.value.content_cn,
+          sample_testcases: question.value.sample_cases,
+          model_type: "qwen"
+        })
+      }),
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: question.value.title_cn,
+          content: question.value.content_cn,
+          sample_testcases: question.value.sample_cases,
+          model_type: "deepseek"
+        })
+      })
+    ]);
+
+    const [qwenData, deepseekData] = await Promise.all([
+      qwenResponse.json(),
+      deepseekResponse.json()
+    ]);
+
+    if (qwenData.result && deepseekData.result) {
+      hint.value = {
+        qwen: processHint(qwenData.data.code),
+        deepseek: processHint(deepseekData.data.code)
+      };
+    }
   } catch (error) {
     console.error('获取提示失败:', error);
-    hint.value = '获取提示失败，请稍后重试';
+    hint.value = {
+      qwen: '获取提示失败，请稍后重试',
+      deepseek: '获取提示失败，请稍后重试'
+    };
   } finally {
     hintLoading.value = false;
   }
@@ -136,6 +166,13 @@ const programmingLanguages = [
   { value: 'cpp', label: 'C++' },
   { value: 'javascript', label: 'JavaScript' },
   { value: 'golang', label: 'Go' },
+  { value: 'c', label: 'C' },
+  { value: 'csharp', label: 'C#' },
+  { value: 'ruby', label: 'Ruby' },
+  { value: 'kotlin', label: 'Kotlin' },
+  { value: 'swift', label: 'Swift' },
+  { value: 'typescript', label: 'TypeScript' },
+  
 ];
 
 const selectedLanguage = ref(programmingLanguages[0].value);
@@ -153,6 +190,53 @@ const isCorrecting = ref(false);
 
 // 检查判题结果
 const checkResult = async (id: number, flag: boolean = false) => {
+  // 如果是自定义题目，直接调用 AI judge 接口
+  if (question.value?.is_custom) {
+    const url = `http://47.119.38.174:8080/api/ai/judge/`;
+    const token = Cookies.get('authToken');
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          problem_id: questionId.value,
+          language: selectedLanguage.value,
+          code: userCode.value,
+          test: flag
+        })
+      });
+
+      const data = await response.json();
+      if (data.result) {
+        // 转换返回格式以匹配原有接口
+        const result: JudgeResult = {
+          status_runtime: `${data.data.time_used} ms`,
+          status_memory: `${data.data.memory_used} MB`,
+          status_msg: data.data.status,
+          total_correct: data.data.test_results.filter(r => r.status === 'SUCCESS').length,
+          total_testcases: data.data.test_results.length,
+          run_success: data.data.status === 'SUCCESS',
+          state: 'FINISHED',
+          display_runtime: `${data.data.time_used}`,
+          memory_percentile: null,
+          runtime_percentile: null,
+          code_answer: data.data.test_results.map(r => r.actual_output),
+          expected_code_answer: data.data.test_results.map(r => r.expected_output)
+        };
+        return result;
+      }
+      throw new Error('Failed to get judge result');
+    } catch (error) {
+      console.error('获取判题结果失败:', error);
+      return null;
+    }
+  }
+
+  // 非自定义题目的原有逻辑
   const url = `http://47.119.38.174:8080/api/leetcode/check/`;
   const token = Cookies.get('authToken');
   
@@ -163,13 +247,13 @@ const checkResult = async (id: number, flag: boolean = false) => {
   const poll = async (): Promise<any> => {
     try {
       const response = await fetch(url, {
-        method: 'POST', // 改为 POST 请求
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          run_code_id: id.toString(), // 确保是字符串类型
+          run_code_id: id.toString(),
           test: flag
         })
       });
@@ -177,16 +261,12 @@ const checkResult = async (id: number, flag: boolean = false) => {
       const data = await response.json();
       
       if (data.result && data.data) {
-        // 如果状态是PENDING或STARTED，并且未超过最大重试次数，继续轮询
-        console.log(data)
         if ((data.data.state === 'PENDING' || data.data.state === 'STARTED') && retryCount < MAX_RETRIES) {
           retryCount++;
-          console.log(retryCount,"hihi")
           await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
           return poll();
         }
 
-        // 标准化返回数据
         const result: JudgeResult = {
           status_runtime: data.data.status_runtime || '0 ms',
           status_memory: data.data.status_memory || '0 MB',
@@ -200,7 +280,6 @@ const checkResult = async (id: number, flag: boolean = false) => {
           runtime_percentile: data.data.runtime_percentile
         };
 
-        // 如果是解释器返回的结果，添加代码答案相关字段
         if (data.data.code_answer) {
           result.code_answer = data.data.code_answer;
           result.expected_code_answer = data.data.expected_code_answer;
@@ -221,11 +300,37 @@ const checkResult = async (id: number, flag: boolean = false) => {
 
 // 运行测试用例
 const runTest = async () => {
+  // 如果是自定义题目，直接使用 checkResult 函数，因为它已经包含了对自定义题目的处理
+  if (question.value?.is_custom) {
+    try {
+      const result = await checkResult(0, true);
+      if (result) {
+        testResult.value = {
+          show: true,
+          status: result.status_msg === 'SUCCESS',
+          message: result.status_msg === 'SUCCESS'
+            ? '太棒了！测试用例全部通过，你的代码运行得很好！' 
+            : `测试未通过: ${result.status_msg}。再检查一下代码逻辑吧！`,
+          details: result
+        };
+      }
+    } catch (error) {
+      console.error('运行测试失败:', error);
+      testResult.value = {
+        show: true,
+        status: false,
+        message: '运行测试失败，请重试',
+        details: null
+      };
+    }
+    return;
+  }
+
+  // 非自定义题目的原有逻辑
   const url = 'http://47.119.38.174:8080/api/leetcode/interpret_solution/';
   const token = Cookies.get('authToken');
 
   try {
-    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -241,8 +346,7 @@ const runTest = async () => {
 
     const data = await response.json();
     if (data.result && data.data && data.data.interpret_id) {
-      // 等待并获取判题结果
-      const result = await checkResult(data.data.interpret_id,true);
+      const result = await checkResult(data.data.interpret_id, true);
       if (result) {
         testResult.value = {
           show: true,
@@ -254,11 +358,6 @@ const runTest = async () => {
         };
       }
     }
-
-    // 3秒后自动关闭提示
-    setTimeout(() => {
-      testResult.value.show = false;
-    }, 3000);
   } catch (error) {
     console.error('运行测试失败:', error);
     testResult.value = {
@@ -268,6 +367,11 @@ const runTest = async () => {
       details: null
     };
   }
+
+  // 3秒后自动关闭提示
+  setTimeout(() => {
+    testResult.value.show = false;
+  }, 3000);
 };
 
 // 添加新的响应式变量
@@ -294,13 +398,55 @@ const processBoldText = (text: string) => {
   return text.replace(/\*\*([\d.]+|\S[^*]*?\S)\*\*/g, '<strong>$1</strong>');
 };
 
+//处理Hint样式函数
+const processHint = (text: string) =>{
+  const lines = text.split('\n');
+  
+  // 2. 每行用 <p> 包裹，数字开头的行加粗
+  return lines.map(line => {
+    if (/^\d+\./.test(line.trim())) {
+      return `<p><strong>${line}</strong></p>`;
+    }
+    return `<p>${line}</p>`;
+  }).join('');
+
+}
+
+
 // 修改提交答案函数
 const submitAnswer = async () => {
   isSubmitting.value = true;
-  const url = 'http://47.119.38.174:8080/api/leetcode/submit/';
-  const token = Cookies.get('authToken');
   const knowledgePointId = Number(route.query.knowledgePointId);
+
   try {
+    // 如果是自定义题目，直接使用 checkResult
+    if (question.value?.is_custom) {
+      const result = await checkResult(0, false); // 传入 false 表示这是一次提交而不是测试
+      if (result) {
+        isSubmitted.value = true;
+        isCorrect.value = result.status_msg === 'SUCCESS';
+        submitResult.value = {
+          show: true,
+          status: result.status_msg === 'SUCCESS',
+          message: result.status_msg === 'SUCCESS'
+            ? '恭喜你！成功解决了这道题目，你的编程能力又提升了！' 
+            : `提交未通过: ${result.status_msg}。继续努力，你一定能解决这个问题！`,
+          details: result
+        };
+
+        // 分析代码并获取纠错建议
+        await analyzeCode(0); // 对于自定义题目，我们传入 0 作为 record_id
+        if (!isCorrect.value) {
+          await correctCode(0);
+        }
+      }
+      return;
+    }
+
+    // 非自定义题目的原有逻辑
+    const url = 'http://47.119.38.174:8080/api/leetcode/submit/';
+    const token = Cookies.get('authToken');
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -317,9 +463,7 @@ const submitAnswer = async () => {
 
     const data = await response.json();
     if (data.result && data.data && data.data.submission_id && data.data.record_id) {
-      // 等待并获取判题结果
-      const result = await checkResult(data.data.submission_id,false);
-      console.log(result);
+      const result = await checkResult(data.data.submission_id, false);
       if (result) {
         isSubmitted.value = true;
         isCorrect.value = result.status_msg === 'Accepted';
@@ -332,8 +476,6 @@ const submitAnswer = async () => {
           details: result
         };
 
-        // 如果提交成功，只分析代码
-        // 如果提交失败，分析代码并获取纠错建议
         await analyzeCode(data.data.record_id);
         if (result.status_msg !== 'Accepted') {
           await correctCode(data.data.record_id);
@@ -542,10 +684,22 @@ const correctCode = async (recordId: number) => {
           </t-button>
 
           <!-- 添加提示弹窗 -->
-          <t-dialog v-model:visible="showHint" header="提示" theme="default">
-            <t-loading :loading="hintLoading">
-              <div v-if="!hintLoading" v-html="hint"></div>
-            </t-loading>
+          <t-dialog v-model:visible="showHint" header="提示" theme="default" :style="{ minHeight: '400px' }">
+            
+            <div class="hint-content">
+              <t-loading :loading="hintLoading" :style="{ height: '300px' }">
+                <div v-if="!hintLoading" v-html="hint[selectedHintModel]" class="hint-text"></div>
+              </t-loading>
+            </div>
+            <template #footer>
+              <div class="hint-dialog-header">
+                
+                <t-radio-group v-model="selectedHintModel" variant="default-filled">
+                  <t-radio-button value="qwen">千问</t-radio-button>
+                  <t-radio-button value="deepseek">Deepseek</t-radio-button>
+                </t-radio-group>
+              </div>
+            </template>
           </t-dialog>
         </div>
 
@@ -633,7 +787,7 @@ const correctCode = async (recordId: number) => {
         <!-- 知识点讲解 -->
         <div class="knowledge-section">
           <div class="section-header">
-            <h3>知识点讲解</h3>
+            <h3>AI知识点讲解</h3>
             <t-select
               label="模型："
               v-model="selectedAnalysisModel"
@@ -1017,5 +1171,41 @@ const correctCode = async (recordId: number) => {
 .detail-item .value {
   color: #1a73e8;
   font-weight: 500;
+}
+
+.hint-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 16px;
+}
+
+.hint-content {
+  min-height: 300px;
+  padding: 16px;
+}
+
+.hint-text {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+:deep(.t-dialog__body) {
+  padding: 0;
+}
+
+:deep(.t-loading) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.t-loading__parent) {
+  min-height: 300px;
+}
+
+:deep(.t-loading__spinner) {
+  font-size: 24px;
 }
 </style>
