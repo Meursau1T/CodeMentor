@@ -18,11 +18,15 @@ const answerRecord = ref({
   userAnswer: {
     code: ''
   },
-  aiCorrection: {
-    analysis: ''
-  },
-  solution: {
-    code: ''
+  aiCorrections: {
+    qwen: {
+      analysis: '',
+      code: ''
+    },
+    deepseek: {
+      analysis: '',
+      code: ''
+    }
   }
 });
 
@@ -57,11 +61,15 @@ onMounted(async () => {
       userAnswer: {
         code: data.typed_code
       },
-      aiCorrection: {
-        analysis: data.wrong_reason_and_analyze
-      },
-      solution: {
-        code: data.corrected_code
+      aiCorrections: {
+        qwen: {
+          analysis: data.qwen_wrong_reason_and_analyze,
+          code: data.qwen_corrected_code
+        },
+        deepseek: {
+          analysis: data.deepseek_wrong_reason_and_analyze,
+          code: data.deepseek_corrected_code
+        }
       }
     };
   } catch (error) {
@@ -147,32 +155,39 @@ const processBoldText = (text: string) => {
       <!-- AI优化建议 -->
       <div class="section-card">
         <h3>AI 代码优化建议</h3>
-        <t-card :bordered="true" theme="default">
-          <t-space direction="vertical">
-            <!-- <pre class="code-block">{{ answerRecord.aiCorrection.code }}</pre> -->
-            <div class="explanation-text" v-html="processBoldText(answerRecord.aiCorrection.analysis)"></div>
-            <!-- <p class="explanation-text">{{ answerRecord.aiCorrection.analysis }}</p> -->
-          </t-space>
-        </t-card>
-      </div>
-
-      <!-- 标准解答 -->
-      <!-- <div class="section-card">
-        <h3>参考解答</h3>
-        <t-card :bordered="true" theme="default">
-          <pre class="code-block">{{ answerRecord.solution.code }}</pre>
-        </t-card>
-      </div> -->
-
-      <!-- 知识点讲解 -->
-      <!-- <div class="section-card">
-        <h3>知识点讲解</h3>
-        <t-card :bordered="true" theme="default">
-          <div class="explanation-text" style="white-space: pre-line">
-            {{ answerRecord.solution.explanation }}
+        
+        <!-- 千问AI分析 -->
+        <div class="ai-analysis-section">
+          <div class="ai-header">
+            <t-tag theme="primary">千问AI分析</t-tag>
           </div>
-        </t-card>
-      </div> -->
+          <t-card :bordered="true" theme="default" class="mb-4">
+            <t-space direction="vertical" class="w-full">
+              <div class="explanation-text" v-html="processBoldText(answerRecord.aiCorrections.qwen.analysis)"></div>
+              <template v-if="answerRecord.aiCorrections.qwen.code">
+                <div class="corrected-code-title">优化后的代码：</div>
+                <pre class="code-block">{{ answerRecord.aiCorrections.qwen.code }}</pre>
+              </template>
+            </t-space>
+          </t-card>
+        </div>
+
+        <!-- Deepseek AI分析 -->
+        <div class="ai-analysis-section">
+          <div class="ai-header">
+            <t-tag theme="success">Deepseek AI分析</t-tag>
+          </div>
+          <t-card :bordered="true" theme="default">
+            <t-space direction="vertical" class="w-full">
+              <div class="explanation-text" v-html="processBoldText(answerRecord.aiCorrections.deepseek.analysis)"></div>
+              <template v-if="answerRecord.aiCorrections.deepseek.code">
+                <div class="corrected-code-title">优化后的代码：</div>
+                <pre class="code-block">{{ answerRecord.aiCorrections.deepseek.code }}</pre>
+              </template>
+            </t-space>
+          </t-card>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -288,5 +303,31 @@ const processBoldText = (text: string) => {
 .hint-title {
   font-weight: 600;
   margin-bottom: 8px;
+}
+
+.ai-analysis-section {
+  margin-bottom: 24px;
+}
+
+.ai-analysis-section:last-child {
+  margin-bottom: 0;
+}
+
+.ai-header {
+  margin-bottom: 16px;
+}
+
+.corrected-code-title {
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+  color: #1F2937;
+}
+
+.mb-4 {
+  margin-bottom: 16px;
+}
+
+.w-full {
+  width: 100%;
 }
 </style> 
