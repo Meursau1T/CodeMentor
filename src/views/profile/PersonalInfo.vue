@@ -70,7 +70,7 @@ const handlePasswordSubmit = async () => {
               type="password"
               readonly
               :value="'********'"
-              :suffix="passwordVisible ? 'visibility' : 'visibility-off'"
+              :suffix="passwordVisible "
               @click:suffix="passwordVisible = !passwordVisible"
             />
           </t-form-item>

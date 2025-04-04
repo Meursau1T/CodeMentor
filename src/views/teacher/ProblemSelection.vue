@@ -84,6 +84,79 @@ const selectedProblems = ref<{
   status: string
 }[]>([])
 
+// 添加自定义题目相关状态
+const customProblemVisible = ref(false)
+const customProblemForm = ref({
+  title: '',
+  content: '',
+  difficulty: 'Easy',
+  sample_testcases: '',
+  tag_ids: [] as number[],
+  test_cases: '',
+  time_limit: 1000,
+  memory_limit: 512
+})
+
+const allTags = ref<Array<{
+  ID: number
+  name: string
+  name_cn: string
+}>>([])
+
+// 获取所有标签
+const fetchAllTags = async () => {
+  try {
+    const response = await fetch('http://47.119.38.174:8080/api/problems/tags/', {
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`
+      }
+    })
+    const data = await response.json()
+    if (data.result) {
+      allTags.value = data.data
+    }
+  } catch (error) {
+    console.error('获取标签列表失败:', error)
+    MessagePlugin.error('获取标签列表失败')
+  }
+}
+
+// 提交自定义题目
+const submitCustomProblem = async () => {
+  try {
+    const response = await fetch('http://47.119.38.174:8080/api/problems/custom/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(customProblemForm.value)
+    })
+    
+    const data = await response.json()
+    if (data.result) {
+      MessagePlugin.success('添加自定义题目成功')
+      customProblemVisible.value = false
+      // 重置表单
+      customProblemForm.value = {
+        title: '',
+        content: '',
+        difficulty: 'Easy',
+        sample_testcases: '',
+        tag_ids: [],
+        test_cases: '',
+        time_limit: 1000,
+        memory_limit: 512
+      }
+      // 刷新题目列表
+      fetchProblems()
+    }
+  } catch (error) {
+    console.error('提交自定义题目失败:', error)
+    MessagePlugin.error('提交自定义题目失败')
+  }
+}
+
 // 获取题库全部题目
 const fetchProblems = async () => {
   try {
@@ -221,6 +294,7 @@ const showSelectedList = () => {
 
 onMounted(() => {
   fetchProblems()
+  fetchAllTags()
 })
 </script>
 
@@ -230,9 +304,10 @@ onMounted(() => {
       <t-card title="题库选题">
         <template #actions>
           <t-space>
-            <t-button theme="default" @click="showSelectedList">查看已选列表</t-button>
-            <t-button @click="$router.go(-1)">返回</t-button>
-            <t-button theme="primary" @click="handleSubmit">确认选题</t-button>
+            <t-button theme="default" @click="$router.go(-1)">返回</t-button>
+            <t-button theme="primary" variant="outline" @click="customProblemVisible = true">自定义题目</t-button>
+            <t-button theme="primary" variant="outline" @click="showSelectedList">查看已选列表</t-button>
+            <t-button theme="primary" variant="outline" @click="handleSubmit">确认选题</t-button>
           </t-space>
         </template>
 
@@ -390,6 +465,99 @@ onMounted(() => {
             />
           </t-loading>
         </t-dialog>
+
+        <!-- 添加自定义题目弹窗 -->
+        <t-dialog
+          v-model:visible="customProblemVisible"
+          header="添加自定义题目"
+          width="800px"
+          :footer="false"
+          :close-on-overlay-click="false"
+        >
+          <t-form
+            :data="customProblemForm"
+            @submit="submitCustomProblem"
+            class="custom-problem-form"
+          >
+            <t-form-item label="题目标题" name="title" :rules="[{ required: true, message: '请输入题目标题' }]">
+              <t-input v-model="customProblemForm.title" placeholder="请输入题目标题" />
+            </t-form-item>
+
+            <t-form-item label="题目描述" name="content" :rules="[{ required: true, message: '请输入题目描述' }]">
+              <t-textarea
+                v-model="customProblemForm.content"
+                placeholder="请输入题目描述，支持 Markdown 格式"
+                :autosize="{ minRows: 4, maxRows: 8 }"
+              />
+            </t-form-item>
+
+            <t-form-item label="难度" name="difficulty" :rules="[{ required: true, message: '请选择难度' }]">
+              <t-radio-group v-model="customProblemForm.difficulty">
+                <t-radio-button v-for="d in difficulties" :key="d.value" :value="d.value">
+                  <span :style="{ color: d.color }">{{ d.label }}</span>
+                </t-radio-button>
+              </t-radio-group>
+            </t-form-item>
+
+            <t-form-item label="关联标签" name="tag_ids" :rules="[{ required: true, message: '请选择至少一个标签' }]">
+              <t-select
+                v-model="customProblemForm.tag_ids"
+                placeholder="请选择标签"
+                multiple
+              >
+                <t-option
+                  v-for="tag in allTags"
+                  :key="tag.ID"
+                  :value="tag.ID"
+                  :label="tag.name_cn"
+                />
+              </t-select>
+            </t-form-item>
+
+            <t-form-item label="示例用例" name="sample_testcases" :rules="[{ required: true, message: '请输入示例用例' }]">
+              <t-textarea
+                v-model="customProblemForm.sample_testcases"
+                placeholder="请输入示例用例，每行一个，输入输出用换行分隔"
+                :autosize="{ minRows: 3, maxRows: 6 }"
+              />
+            </t-form-item>
+
+            <t-form-item label="测试用例" name="test_cases" :rules="[{ required: true, message: '请输入测试用例' }]">
+              <t-textarea
+                v-model="customProblemForm.test_cases"
+                placeholder="请输入测试用例，每组用例的输入输出用换行分隔，多组用例之间也用换行分隔"
+                :autosize="{ minRows: 4, maxRows: 8 }"
+              />
+            </t-form-item>
+
+            <t-form-item label="时间限制" name="time_limit">
+              <t-input-number
+                v-model="customProblemForm.time_limit"
+                :min="100"
+                :max="10000"
+                :step="100"
+                suffix="ms"
+              />
+            </t-form-item>
+
+            <t-form-item label="内存限制" name="memory_limit">
+              <t-input-number
+                v-model="customProblemForm.memory_limit"
+                :min="16"
+                :max="1024"
+                :step="16"
+                suffix="MB"
+              />
+            </t-form-item>
+
+            <t-form-item>
+              <t-space>
+                <t-button theme="primary" type="submit">提交</t-button>
+                <t-button theme="default" @click="customProblemVisible = false">取消</t-button>
+              </t-space>
+            </t-form-item>
+          </t-form>
+        </t-dialog>
       </t-card>
     </t-content>
   </t-layout>
@@ -417,5 +585,17 @@ onMounted(() => {
   padding: 12px;
   background: var(--td-bg-color-secondarycontainer);
   border-radius: 4px;
+}
+
+.custom-problem-form {
+  padding: 16px;
+}
+
+.custom-problem-form :deep(.t-form__item) {
+  margin-bottom: 24px;
+}
+
+.custom-problem-form :deep(.t-textarea) {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 </style> 
