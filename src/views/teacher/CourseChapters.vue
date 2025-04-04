@@ -53,6 +53,13 @@ const aiRecommendTags = ref<Array<{ ID: number; name: string; name_cn: string }>
 const selectedTagIds = ref<number[]>([])
 const tagLoading = ref(false)
 
+// 添加新的响应式变量
+const classStatsDialogVisible = ref(false)
+const classBarChartContainer = ref<HTMLElement | null>(null)
+const classProgressChartContainer = ref<HTMLElement | null>(null)
+let classBarChart: echarts.ECharts | null = null
+let classProgressChart: echarts.ECharts | null = null
+
 // Mock数据，后续替换为实际API调用
 const fetchCourseDetail = async () => {
   loading.value = true
@@ -299,9 +306,9 @@ const drawCharts = (totalProblems: number, difficultyCount: any) => {
         type: 'pie',
         radius: '50%',
         data: [
-          { value: difficultyCount.Easy, name: '简单', itemStyle: { color: '#10B981' } },
-          { value: difficultyCount.Medium, name: '中等', itemStyle: { color: '#F59E0B' } },
-          { value: difficultyCount.Hard, name: '困难', itemStyle: { color: '#EF4444' } }
+          { value: difficultyCount.Easy, name: 'Easy', itemStyle: { color: '#5470c6' } },
+          { value: difficultyCount.Medium, name: 'Medium', itemStyle: { color: '#91cc75' } },
+          { value: difficultyCount.Hard, name: 'Hard', itemStyle: { color: '#fac858' } }
         ],
         emphasis: {
           itemStyle: {
@@ -344,6 +351,12 @@ const handleResize = () => {
   }
   if (pieChart) {
     pieChart.resize()
+  }
+  if (classBarChart) {
+    classBarChart.resize()
+  }
+  if (classProgressChart) {
+    classProgressChart.resize()
   }
 }
 
@@ -435,6 +448,209 @@ const handleSubmitTags = async () => {
   }
 }
 
+// 获取班级统计数据
+const fetchClassStats = async () => {
+  try {
+    const response = await fetch(`http://47.119.38.174:8080/api/courses/${courseId.value}/stats/`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`
+      }
+    })
+    const data = await response.json()
+    if (data.result) {
+      drawClassStats(data.data)
+    }
+  } catch (error) {
+    console.error('获取班级统计数据失败:', error)
+  }
+}
+
+// 绘制班级统计图表
+const drawClassStats = (statsData: any[]) => {
+  // 准备数据
+  const classNames = statsData.map(item => item.class_name)
+  const correctRates = statsData.map(item => Number(item.avg_correct_rate.toFixed(2)))
+  const progressRates = statsData.map(item => Number((item.avg_progress * 100).toFixed(2)))
+
+  // 绘制正确率柱状图
+  if (classBarChart) {
+    classBarChart.dispose()
+  }
+  classBarChart = echarts.init(classBarChartContainer.value!)
+  classBarChart.setOption({
+    title: {
+      text: '各班级平均正确率',
+      left: 'center',
+      top: 10,
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 500
+      }
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      },
+      formatter: '{b}<br/>{a}: {c}%'
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: classNames,
+      axisLabel: {
+        interval: 0,
+        rotate: 30
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '正确率',
+      nameTextStyle: {
+        padding: [0, 0, 0, 40]
+      },
+      axisLabel: {
+        formatter: '{value}%'
+      },
+      max: 100
+    },
+    series: [
+      {
+        name: '正确率',
+        type: 'bar',
+        data: correctRates,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#83bff6' },
+            { offset: 0.5, color: '#188df0' },
+            { offset: 1, color: '#188df0' }
+          ])
+        },
+        emphasis: {
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#2378f7' },
+              { offset: 0.7, color: '#2378f7' },
+              { offset: 1, color: '#83bff6' }
+            ])
+          }
+        },
+        barWidth: '40%',
+        label: {
+          show: true,
+          position: 'top',
+          formatter: '{c}%'
+        }
+      }
+    ]
+  })
+
+  // 绘制进度条形图
+  if (classProgressChart) {
+    classProgressChart.dispose()
+  }
+  classProgressChart = echarts.init(classProgressChartContainer.value!)
+  classProgressChart.setOption({
+    title: {
+      text: '各班级平均学习进度',
+      left: 'center',
+      top: 10,
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 500
+      }
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      },
+      formatter: '{b}<br/>{a}: {c}%'
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: classNames,
+      axisLabel: {
+        interval: 0,
+        rotate: 30
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '进度',
+      nameTextStyle: {
+        padding: [0, 0, 0, 40]
+      },
+      axisLabel: {
+        formatter: '{value}%'
+      }
+    },
+    series: [
+      {
+        name: '学习进度',
+        type: 'bar',
+        data: progressRates,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#91cc75' },
+            { offset: 0.5, color: '#67c23a' },
+            { offset: 1, color: '#67c23a' }
+          ])
+        },
+        emphasis: {
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#67c23a' },
+              { offset: 0.7, color: '#67c23a' },
+              { offset: 1, color: '#91cc75' }
+            ])
+          }
+        },
+        barWidth: '40%',
+        label: {
+          show: true,
+          position: 'top',
+          formatter: '{c}%'
+        }
+      }
+    ]
+  })
+}
+
+// 处理班级统计弹窗显示
+const handleShowClassStats = () => {
+  classStatsDialogVisible.value = true
+  // 等待DOM更新后初始化图表
+  setTimeout(() => {
+    fetchClassStats()
+  }, 100)
+}
+
+// 处理班级统计弹窗关闭
+const handleCloseClassStats = () => {
+  classStatsDialogVisible.value = false
+  if (classBarChart) {
+    classBarChart.dispose()
+    classBarChart = null
+  }
+  if (classProgressChart) {
+    classProgressChart.dispose()
+    classProgressChart = null
+  }
+}
+
 onMounted(() => {
   fetchCourseDetail()
   fetchCourseClasses()
@@ -444,6 +660,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   handleCloseStats()
+  handleCloseClassStats()
 })
 </script>
 
@@ -515,7 +732,18 @@ onUnmounted(() => {
           </t-table>
         </t-loading>
       </t-card>
-      <t-card class="class-card" title="班级管理" :bordered="true">
+      <t-card class="class-card" :bordered="true">
+        <template #title>
+              <span class="card-title">班级管理</span>
+        </template>
+        <template #actions>
+          <t-space>
+          <t-button theme="default"  @click="handleShowClassStats">
+                统计信息
+          </t-button>
+          </t-space>
+        </template>
+         
         <t-tabs v-model="activeClassId" @change="handleTabChange">
             <t-tab-panel 
                 v-for="cls in classList" 
@@ -625,6 +853,19 @@ onUnmounted(() => {
           </div>
         </t-space>
       </t-dialog>
+
+      <t-dialog
+        v-model:visible="classStatsDialogVisible"
+        header="班级统计信息"
+        :width="900"
+        :footer="false"
+        @close="handleCloseClassStats"
+      >
+        <div class="stats-container">
+          <div ref="classBarChartContainer" class="chart"></div>
+          <div ref="classProgressChartContainer" class="chart"></div>
+        </div>
+      </t-dialog>
     </t-content>
   </t-layout>
 </template>
@@ -654,7 +895,7 @@ onUnmounted(() => {
 
 .chart {
   width: 100%;
-  height: 300px;
+  height: 350px;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -685,5 +926,11 @@ onUnmounted(() => {
 
 :deep(.t-tag:hover) {
   opacity: 0.8;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a1a1a;
 }
 </style> 

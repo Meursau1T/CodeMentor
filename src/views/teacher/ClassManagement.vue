@@ -7,7 +7,7 @@ import Cookies from 'js-cookie'
 
 const route = useRoute()
 const router = useRouter()
-const classId = ref(route.params.index)
+const classId = ref(route.params.classID)
 const className = ref(route.params.className) // 实际应从接口获取
 const fileData = ref<any[]>([])
 const isUploading = ref(false)
@@ -21,8 +21,8 @@ const updateForm = ref({
   password: '',
   name: '',
   student_id: '',
-  role: 'student',
-  class_id: 0
+  role: 'user',
+  class_id: null
 })
 
 // 解析Excel文件
@@ -151,8 +151,7 @@ const fetchCourses = async () => {
       courses.value = data.data.course_names
     }
   } catch (error) {
-    console.error('获取课程列表失败:', error)
-    Message.error('获取课程列表失败')
+    alert('获取课程列表失败')
   }
 }
 
@@ -172,7 +171,6 @@ const handleDeleteStudent = async (student: any) => {
       alert('删除失败')
     }
   } catch (error) {
-    console.error('删除学生失败:', error)
     alert('删除失败')
   }
 }
@@ -185,8 +183,8 @@ const handleUpdateStudent = (student: any) => {
     password: student.student_id, // 默认密码为学号
     name: student.name,
     student_id: student.student_id,
-    role: 'student',
-    class_id: 0
+    role: 'user',
+    class_id: null
   }
   updateDialogVisible.value = true
   fetchCourses() // 获取课程列表
@@ -204,15 +202,14 @@ const handleSubmitUpdate = async () => {
       body: JSON.stringify(updateForm.value)
     })
     if (response.ok) {
-      Message.success('更新成功')
+      alert('更新成功')
       updateDialogVisible.value = false
       fetchClassStudents() // 刷新列表
     } else {
-      Message.error('更新失败')
+      alert('更新失败')
     }
   } catch (error) {
-    console.error('更新学生信息失败:', error)
-    Message.error('更新失败')
+    alert('更新失败')
   }
 }
 
@@ -241,8 +238,7 @@ const fetchClassStudents = async () => {
   }
 }
 
-onMounted(() => {
- 
+onMounted(() => { 
   fetchClassStudents()
 })
 
@@ -366,7 +362,7 @@ onMounted(() => {
         </t-form-item>
         <t-form-item label="角色" name="role">
           <t-radio-group v-model="updateForm.role">
-            <t-radio value="student">学生</t-radio>
+            <t-radio value="user">学生</t-radio>
             <t-radio value="admin">管理员</t-radio>
           </t-radio-group>
         </t-form-item>
@@ -381,12 +377,14 @@ onMounted(() => {
           </t-select>
         </t-form-item>
       </t-form>
-      <template #footer>
+      <div class = "updateCardFooter">
         <t-space>
           <t-button theme="default" @click="updateDialogVisible = false">取消</t-button>
           <t-button theme="primary" @click="handleSubmitUpdate">确认</t-button>
         </t-space>
-      </template>
+      </div>
+        
+      
     </t-dialog>
   </div>
 </template>
@@ -456,4 +454,9 @@ onMounted(() => {
 :deep(.t-form__item) {
   margin-bottom: 20px;
 }
+
+.updateCardFooter{
+  text-align:right
+}
+
 </style> 

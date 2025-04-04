@@ -127,7 +127,7 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/class/:className/manage',
+      path: '/class/:className/:classID/manage',
       name: 'ClassManagement',
       component: () => import('@/views/teacher/ClassManagement.vue'),
       meta: { requiresAuth: true }
