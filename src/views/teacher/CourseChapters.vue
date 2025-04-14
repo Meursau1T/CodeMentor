@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Cookies from 'js-cookie'
 import * as echarts from 'echarts'
+import { studentData, ClassStats, Student } from '../../mock/mockData'; 
 // import { MessagePlugin } from 'tdesign-vue'
 
 const route = useRoute()

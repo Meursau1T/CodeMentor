@@ -13,6 +13,11 @@ const menuItems = computed(() => {
   console.log('Current user role:', userStore.userInfo?.role);
   
   if (userStore.userInfo?.role === 'admin') {
+    console.log('Showing admin menu');
+    return [
+      { value: ROUTE_NAME.ADMIN_SETTINGS, label: '管理员端', to: '/admin/settings' }
+    ];
+  } else if (userStore.userInfo?.role === 'teacher') {
     console.log('Showing teacher menu');
     return [
       { value: ROUTE_NAME.TEACHER_DASHBOARD, label: '教师端', to: '/teacher-dashboard' }
@@ -112,7 +117,7 @@ watch(
 
 .header .t-menu__item {
     color: #A6A6A6;
-    width: 90px;
+    width: 130px;
     font-size: 18px;
     height: var(--td-comp-size-xxl)
 }

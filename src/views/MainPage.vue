@@ -43,27 +43,37 @@ onMounted(() => {
 <template>
   <div class="container">
     <div class="left-card" :class="{ 'full-width': !userStore.isLogin() }">
-      <div class="card-content">
-        <h2 class="title">AI赋能编程学习，助你高效掌握代码艺术</h2>
-        <div class="features">
-          <div class="feature-item">
-            <span class="feature-icon">📚</span>
-            <span class="feature-text">智能题库：覆盖C、Python、Java等多种语言</span>
-          </div>
-          <div class="feature-item">
-            <span class="feature-icon">🔍</span>
-            <span class="feature-text">实时纠错：AI精准诊断代码问题</span>
-          </div>
-          <div class="feature-item">
-            <span class="feature-icon">🤖</span>
-            <span class="feature-text">24h AI导师：随时提问，即时解答</span>
-          </div>
+  <div class="card-content">
+    <div class="title-container">
+      <h2 class="title">AI赋能编程学习，助你高效掌握代码艺术</h2>
+      <div class="title-decoration"></div>
+    </div>
+    <div class="features">
+      <div class="feature-item">
+        <div class="feature-icon-container">
+          <span class="feature-icon">📚</span>
         </div>
-        <t-button theme="primary" class="start-btn" @click="goToQuestionBank">
-          开始练习 →
-        </t-button>
+        <span class="feature-text">智能题库：覆盖C、Python、Java等多种语言</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon-container">
+          <span class="feature-icon">🔍</span>
+        </div>
+        <span class="feature-text">AI实时纠错：AI精准诊断代码问题</span>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon-container">
+          <span class="feature-icon">🤖</span>
+        </div>
+        <span class="feature-text">24小时在线的AI导师：随时提问，即时解答</span>
       </div>
     </div>
+    <t-button theme="primary" class="start-btn" @click="goToQuestionBank">
+      立即体验 >>
+    </t-button>
+  </div>
+  <div class="card-decoration"></div>
+</div>
     
     <div class="right-section" v-if="userStore.isLogin()">
       <t-card :bordered="true" class="stats-card">
@@ -111,18 +121,26 @@ onMounted(() => {
   width: 100%;
   padding: 72px;
 }
-
 .left-card {
   flex: 1;
   height: 580px;
   background-color: white;
-  box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1), 
+              0 4px 6px -2px rgba(0, 0, 0, 0.05);
   padding: 32px;
   margin-right: 36px;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  border-radius: 12px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.left-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.15), 
+              0 5px 8px -2px rgba(0, 0, 0, 0.08);
 }
 
 .left-card.full-width {
@@ -138,8 +156,101 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: url('@/assets/ai.jpeg') center/cover no-repeat;
-  opacity: 0.35;
+  background: url('@/assets/AI-2.jpg') center/cover no-repeat;
+  opacity: 0.25;
+  z-index: 1;
+  filter: grayscale(20%) brightness(1.05);
+}
+
+.card-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.title-container {
+  position: relative;
+  margin-bottom: 40px;
+}
+
+.title {
+  font-size: 2.2rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 16px;
+  line-height: 1.3;
+  position: relative;
+  z-index: 2;
+}
+
+.title-decoration {
+  position: absolute;
+  width: 120px;
+  height: 8px;
+  background: linear-gradient(90deg, #4299e1, #38b2ac);
+  bottom: 0;
+  left: 0;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: auto;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.feature-icon-container {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+              0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.feature-icon {
+  font-size: 1.5rem;
+}
+
+.feature-text {
+  font-size: 1.1rem;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.start-btn {
+  align-self: flex-start;
+  padding: 12px 24px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  border-radius: 8px;
+  margin-top: auto;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.card-decoration {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  background: linear-gradient(135deg, rgba(66, 153, 225, 0.1), rgba(56, 178, 172, 0.1));
+  border-radius: 50%;
+  top: -50px;
+  right: -50px;
   z-index: 1;
 }
 

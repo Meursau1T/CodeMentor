@@ -149,6 +149,12 @@ const router = createRouter({
       name: 'CoursePractice',
       component: CoursePractice,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin/settings',
+      name: 'AdminSettings',
+      component: () => import('@/views/admin/AdminSettings.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ],
 })
@@ -156,12 +162,15 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const userStore = useUserInfoStore()
   const userInfo = Cookies.get('userInfo')
+  console.log('dev wxf router', to, from);
   if (userInfo) {
     userStore.setUserInfo(JSON.parse(userInfo))
   }
 
   if (to.meta.requiresAuth && !userStore.isLogin()) {
     next('/login')
+  } else if (to.meta.requiresAdmin && userStore.userInfo?.role !== 'admin') {
+    next('/')
   } else {
     next()
   }

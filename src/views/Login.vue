@@ -60,7 +60,7 @@ const confirmCourseSelection = () => {
 
 const handleLogin = async () => {
   if (!studentId.value || !password.value) {
-    errorMessage.value = '请输入账号和密码'
+    errorMessage.value = '请输入账号和密码'  
     return
   }
 
@@ -77,6 +77,8 @@ const handleLogin = async () => {
     })
 
     const data = await response.json()
+    //区分教师、管理员、学生三种角色
+    
     if (data.result) {
       const token = data.data.token
       Cookies.set('authToken', token)
@@ -90,9 +92,19 @@ const handleLogin = async () => {
         userStore.setUserInfo(adminInfo)
         Cookies.set('userInfo', JSON.stringify(adminInfo))
         router.push('/teacher-dashboard')
+        // router.push('/admin/settings')
+        return
+      }else if(studentId.value === 'szu_teacher' && password.value === 'password'){
+        const teacherInfo = {
+          name: 'Teacher',
+          id: 'teacher',
+          role: 'teacher'
+        }
+        userStore.setUserInfo(teacherInfo)
+        Cookies.set('userInfo', JSON.stringify(teacherInfo))
+        router.push('/teacher-dashboard')
         return
       }
-
       // 学生登录逻辑
       const mockUserInfo = {
         name: studentId.value,

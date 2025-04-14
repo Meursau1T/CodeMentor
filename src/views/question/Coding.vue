@@ -3,10 +3,14 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AIChatDialog from '../../../components/AIChatDialog.vue';
 import Cookies from 'js-cookie';
+import { useAdminSettingsStore } from '@/stores/adminSettings';
+import { storeToRefs } from 'pinia';
 
 const route = useRoute();
 const router = useRouter();
 const questionId = ref(Number(route.query.questionId));
+const adminStore = useAdminSettingsStore();
+const { settings } = storeToRefs(adminStore);
 
 // Interface for the API response
 interface ProblemDetail {
@@ -52,6 +56,7 @@ const fetchQuestionDetail = async (id: number) => {
     console.error('获取题目详情失败:', error);
   }
 };
+
 const hintLoading = ref(false);
 const showHint = ref(false);
 const hint = ref({
@@ -123,6 +128,7 @@ const getHint = async () => {
 // Load question details on mount and when ID changes
 onMounted(() => {
   fetchQuestionDetail(questionId.value);
+  adminStore.initSettings();
 });
 
 const userCode = ref('');
@@ -679,7 +685,11 @@ const correctCode = async (recordId: number) => {
           <span :class="['difficulty-tag', question.difficulty.toLowerCase()]">
             {{ question.difficulty }}
           </span>
-          <t-button theme="primary" @click="getHint">
+          <t-button 
+            v-if="settings.ai_assistance.hint_enabled"
+            theme="primary" 
+            @click="getHint"
+          >
             提示
           </t-button>
 
@@ -760,7 +770,10 @@ const correctCode = async (recordId: number) => {
       <!-- 提交后显示的内容 -->
       <template v-if="isSubmitted">
         <!-- 如果答案错误，显示AI纠错 -->
-        <div v-if="!isCorrect" class="result-section">
+        <div 
+          v-if="!isCorrect && settings.ai_assistance.code_correction_enabled" 
+          class="result-section"
+        >
           <div class="section-header">
             <h3>AI 代码纠错</h3>
             <t-select
@@ -785,7 +798,10 @@ const correctCode = async (recordId: number) => {
         </div>
 
         <!-- 知识点讲解 -->
-        <div class="knowledge-section">
+        <div 
+          v-if="settings.ai_assistance.analyze_enabled"
+          class="knowledge-section"
+        >
           <div class="section-header">
             <h3>AI知识点讲解</h3>
             <t-select
@@ -794,7 +810,11 @@ const correctCode = async (recordId: number) => {
               :options="modelOptions"
               :style="{ width: '160px' }"
             />
-            <button class="ask-ai-button" @click="showAIChat = true">
+            <button 
+              v-if="settings.ai_assistance.ai_chat_enabled"
+              class="ask-ai-button" 
+              @click="showAIChat = true"
+            >
               ？有疑问点击请教AI老师
             </button>
           </div>
@@ -813,6 +833,7 @@ const correctCode = async (recordId: number) => {
     </div>
 
     <AIChatDialog
+      v-if="settings.ai_assistance.ai_chat_enabled"
       v-model:visible="showAIChat"
       :problem-id="questionId"
       :typed-code="userCode"

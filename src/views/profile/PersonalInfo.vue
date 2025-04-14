@@ -56,27 +56,36 @@ const handlePasswordSubmit = async () => {
 
 <template>
   <div class="personal-info">
-    <t-card title="个人信息" :bordered="true">
-      <t-space direction="vertical" size="large">
-        <t-avatar size="large">{{ userStore.userInfo.name }}</t-avatar>
+    <t-card title="个人信息" :bordered="true" class="user-profile-card">
+      <t-space direction="vertical" size="28px" class="profile-content">
+        <div class="avatar-section">
+          <t-avatar size="large" class="user-avatar">{{ userStore.userInfo.name }}</t-avatar>
+          <h3 class="user-name">{{ userStore.userInfo.name }}</h3>
+        </div>
         
-        <t-form>
-          <t-form-item label="用户ID">
-            <span>{{ userStore.userInfo.id }}</span>
+        <t-form class="profile-form">
+          <t-form-item label="学号" class="form-item">
+            <span class="form-value">{{ userStore.userInfo.id }}</span>
           </t-form-item>
           
-          <t-form-item label="密码">
+          <t-form-item label="密码" class="form-item">
             <t-input
               type="password"
               readonly
               :value="'********'"
-              :suffix="passwordVisible "
+              :suffix="passwordVisible"
               @click:suffix="passwordVisible = !passwordVisible"
+              class="password-input"
             />
           </t-form-item>
         </t-form>
         
-        <t-button theme="primary" @click="handleChangePassword">
+        <t-button 
+          theme="primary" 
+          @click="handleChangePassword" 
+          class="change-button"
+          block
+        >
           修改密码
         </t-button>
       </t-space>
@@ -121,4 +130,77 @@ const handlePasswordSubmit = async () => {
   max-width: 600px;
   margin: 0 auto;
 }
+
+.user-profile-card {
+  max-width: 380px;
+  margin: 0 auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.profile-content {
+  padding: 16px 24px;
+}
+
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.user-avatar {
+  width: 80px;
+  height: 80px;
+  font-size: 24px;
+  background-color: var(--td-brand-color);
+  color: white;
+  margin-bottom: 12px;
+}
+
+.user-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--td-text-color-primary);
+}
+
+.profile-form {
+  width: 100%;
+  margin: 20px 0;
+}
+
+.form-item {
+  margin-bottom: 18px;
+}
+
+.form-item :deep(.t-form__label) {
+  width: 80px;
+  color: var(--td-text-color-secondary);
+  font-size: 14px;
+}
+
+.form-value {
+  color: var(--td-text-color-primary);
+  font-size: 14px;
+}
+
+.password-input {
+  max-width: 240px;
+}
+
+.change-button {
+  height: 40px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+/* 悬停效果增强 */
+.change-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
 </style> 

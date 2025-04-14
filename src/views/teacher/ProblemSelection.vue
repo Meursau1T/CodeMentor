@@ -3,9 +3,13 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import Cookies from 'js-cookie'
 import { MessagePlugin } from 'tdesign-vue-next'
+import { useAdminSettingsStore } from '@/stores/adminSettings'
+import { storeToRefs } from 'pinia'
 
 const route = useRoute()
 const chapterId = ref(Number(route.params.chapterId))
+const adminStore = useAdminSettingsStore()
+const { settings } = storeToRefs(adminStore)
 
 // 获取课程ID和章节ID
 const courseId = ref(Number(route.params.courseId))
@@ -102,6 +106,26 @@ const allTags = ref<Array<{
   name: string
   name_cn: string
 }>>([])
+
+// 获取系统设置
+const fetchSettings = async () => {
+  try {
+    const response = await fetch('http://47.119.38.174:8080/api/admin/settings', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    if (data.result) {
+      settings.value = data.data;
+    }
+  } catch (error) {
+    console.error('获取系统设置失败:', error);
+  }
+};
 
 // 获取所有标签
 const fetchAllTags = async () => {
@@ -295,6 +319,7 @@ const showSelectedList = () => {
 onMounted(() => {
   fetchProblems()
   fetchAllTags()
+  adminStore.initSettings()
 })
 </script>
 
@@ -305,7 +330,14 @@ onMounted(() => {
         <template #actions>
           <t-space>
             <t-button theme="default" @click="$router.go(-1)">返回</t-button>
-            <t-button theme="primary" variant="outline" @click="customProblemVisible = true">自定义题目</t-button>
+            <t-button 
+              v-if="settings.custom_questions.teacher_custom_enabled"
+              theme="primary" 
+              variant="outline" 
+              @click="customProblemVisible = true"
+            >
+              自定义题目
+            </t-button>
             <t-button theme="primary" variant="outline" @click="showSelectedList">查看已选列表</t-button>
             <t-button theme="primary" variant="outline" @click="handleSubmit">确认选题</t-button>
           </t-space>
