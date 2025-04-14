@@ -128,6 +128,14 @@ export const class6StudentData: Student[] = [
   { id: '20240074', name: '章子豪', progress: 22, answerCount: 15, wrongCount: 5, accuracy: 67 }
 ];
 
+// 定义正确率区间（单位：百分比）
+const ACCURACY_INTERVALS = [
+  { min: 0, max: 60, label: '60%以下' },
+  { min: 60, max: 70, label: '60%-70%' },
+  { min: 70, max: 80, label: '70%-80%' },
+  { min: 80, max: 90, label: '80%-90%' },
+  { min: 90, max: 100, label: '90%以上' }
+];
   // 计算单个班级的统计数据
 const calculateClassStats = (students: Student[]): ClassStats => {
   const validStudents = students.filter(s => !s.isTeacher && s.answerCount > 0);
@@ -135,6 +143,14 @@ const calculateClassStats = (students: Student[]): ClassStats => {
   const totalAccuracy = validStudents.reduce((sum, s) => sum + s.accuracy, 0);
   const totalWrong = validStudents.reduce((sum, s) => sum + s.wrongCount, 0);
   const totalAnswers = validStudents.reduce((sum, s) => sum + s.answerCount, 0);
+  
+  // 新增：统计正确率区间分布
+  const accuracyDistribution = ACCURACY_INTERVALS.map(interval => {
+    const count = validStudents.filter(s => 
+      s.accuracy >= interval.min && s.accuracy < interval.max
+    ).length;
+    return { ...interval, count };
+  });
 
   return {
     avgProgress: parseFloat((totalProgress / students.length).toFixed(2)),
@@ -143,7 +159,8 @@ const calculateClassStats = (students: Student[]): ClassStats => {
       : 0,
     wrongRate: totalAnswers > 0
       ? parseFloat((totalWrong / totalAnswers * 100).toFixed(2))
-      : 0
+      : 0,
+      accuracyDistribution
   };
 };
 

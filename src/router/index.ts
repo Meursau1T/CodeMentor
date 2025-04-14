@@ -162,7 +162,7 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const userStore = useUserInfoStore()
   const userInfo = Cookies.get('userInfo')
-  console.log('dev wxf router', to, from);
+ 
   if (userInfo) {
     userStore.setUserInfo(JSON.parse(userInfo))
   }

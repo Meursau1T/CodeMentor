@@ -3,7 +3,16 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Cookies from 'js-cookie'
 import * as echarts from 'echarts'
-import { studentData, ClassStats, Student } from '../../mock/mockData'; 
+import type { Student, ClassStats } from '../../mock/mockData'
+import { 
+  class1StudentData, 
+  class2StudentData, 
+  class3StudentData,
+  class4StudentData,
+  class5StudentData,
+  class6StudentData,
+  allClassStats 
+} from '../../mock/mockData'
 // import { MessagePlugin } from 'tdesign-vue'
 
 const route = useRoute()
@@ -171,24 +180,57 @@ const fetchCourseClasses = async () => {
 const fetchClassStudents = async (classId: number) => {
   classLoading.value = true
   try {
-    const response = await fetch(`http://47.119.38.174:8080/api/courses/${courseId.value}/classes/${classId}/users/`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${Cookies.get('authToken')}`
+    // 暂时使用mock数据
+    const useMockData = true // 后续可以通过配置切换
+
+    if (useMockData) {
+      // 使用mock数据
+
+      let mockStudents: Student[] = []
+      if (courseId.value === 1) { // 程序设计基础
+        switch(classId) {
+          case 1: mockStudents = class1StudentData; break;
+          case 2: mockStudents = class2StudentData; break;
+          case 6: mockStudents = class3StudentData; break;
+        }
+      } else if (courseId.value === 2) { // 面向对象程序设计
+        switch(classId) {
+          case 3: mockStudents = class4StudentData; break;
+          case 4: mockStudents = class5StudentData; break;
+          case 5: mockStudents = class6StudentData; break;
+        }
       }
-    })
-    const responseData = await response.json()
-    if (responseData.result) {
-      students.value = responseData.data.map((user: any) => ({
-        
-        name: user.name,
-        studentId: user.student_id,
-        user_id:user.user_id,
-        correct_rate: `${Number(user.correct_rate).toFixed(0)}%`,
-        progress: `${Number(user.progress).toFixed(2)}%`,
-        solved_count:user.solved_count,
-        wrong_count:user.wrong_count
+
+      students.value = mockStudents.map(student => ({
+        name: student.name,
+        studentId: student.id,
+        user_id: student.id,
+        correct_rate: `${student.accuracy}%`,
+        progress: `${student.progress}%`,
+        solved_count: student.answerCount,
+        wrong_count: student.wrongCount
       }))
+      console.log('学生数据', students.value)
+    } else {
+      // 原有的接口请求代码
+      const response = await fetch(`http://47.119.38.174:8080/api/courses/${courseId.value}/classes/${classId}/users/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${Cookies.get('authToken')}`
+        }
+      })
+      const responseData = await response.json()
+      if (responseData.result) {
+        students.value = responseData.data.map((user: any) => ({
+          name: user.name,
+          studentId: user.student_id,
+          user_id: user.user_id,
+          correct_rate: `${Number(user.correct_rate).toFixed(0)}%`,
+          progress: `${Number(user.progress).toFixed(2)}%`,
+          solved_count: user.solved_count,
+          wrong_count: user.wrong_count
+        }))
+      }
     }
   } catch (error) {
     console.error('获取学生列表失败:', error)
@@ -200,6 +242,7 @@ const fetchClassStudents = async (classId: number) => {
 // 添加tab切换处理
 const handleTabChange = (value: number) => {
   activeClassId.value = value
+  console.log('切换班级',value)
   fetchClassStudents(value) // 确保切换时调用获取学生方法
 }
 
@@ -467,13 +510,66 @@ const fetchClassStats = async () => {
   }
 }
 
-// 绘制班级统计图表
+// 修改班级统计图表方法
 const drawClassStats = (statsData: any[]) => {
-  // 准备数据
-  const classNames = statsData.map(item => item.class_name)
-  const correctRates = statsData.map(item => Number(item.avg_correct_rate.toFixed(2)))
-  const progressRates = statsData.map(item => Number((item.avg_progress * 100).toFixed(2)))
+  // 暂时使用mock数据
+  const useMockData = true // 后续可以通过配置切换
 
+  let displayData
+  if (useMockData) {
+    // 使用mock数据
+   
+    const mockStats: Array<{ class_name: string } & ClassStats> = []
+    if (courseId.value === 1) {
+      mockStats.push(
+        { class_name: '2024级计科1班', ...allClassStats.class1 },
+        { class_name: '2024级软工1班', ...allClassStats.class2 },
+        { class_name: '2024级计科4班', ...allClassStats.class3 }
+      )
+    } else if (courseId.value === 2) {
+      mockStats.push(
+        { class_name: '2024级计科2班', ...allClassStats.class4 },
+        { class_name: '2024级软工2班', ...allClassStats.class5 },
+        { class_name: '2024级计科3班', ...allClassStats.class6 }
+      )
+    }
+    displayData = mockStats
+  } else {
+    // 使用原有数据
+    displayData = statsData
+  }
+
+  const classNames = displayData.map(item => item.class_name)
+  const correctRates = useMockData 
+    ? displayData.map(item => item.avgAccuracy)
+    : displayData.map(item => Number(item.avg_correct_rate.toFixed(2)))
+  const progressRates = useMockData
+    ? displayData.map(item => item.avgProgress)
+    : displayData.map(item => Number((item.avg_progress * 100).toFixed(2)))
+  const wrongRates = useMockData
+    ? displayData.map(item => item.wrongRate)
+    : displayData.map(item => Number((item.wrong_rate || 0).toFixed(2)))
+ 
+    const INTERVAL_COLORS = {
+  '60%以下': '#F7A8B8', // 粉红
+  '60%-70%': '#F5C3CB', // 浅粉
+  '70%-80%': '#C5E0DC', // 浅绿
+  '80%-90%': '#A5C4D4', // 浅蓝
+  '90%以上': '#8BB8E8'  // 天蓝
+};
+  const generateStackedSeries = () => {
+    const intervals = displayData[0].accuracyDistribution.map((d: any) => d.label); // 区间标签
+    return intervals.map(intervalLabel => ({
+      name: intervalLabel,
+      type: 'bar',
+      stack: '总量', // 堆叠关键配置 [[2]][[9]]
+      data: displayData.map(stats =>
+        stats.accuracyDistribution.find((d: any) => d.label === intervalLabel)?.count || 0
+      ),
+      itemStyle: { color: INTERVAL_COLORS[intervalLabel] } // 可自定义颜色
+    }));
+  };
+  
   // 绘制正确率柱状图
   if (classBarChart) {
     classBarChart.dispose()
@@ -552,6 +648,8 @@ const drawClassStats = (statsData: any[]) => {
     ]
   })
 
+  
+
   // 绘制进度条形图
   if (classProgressChart) {
     classProgressChart.dispose()
@@ -625,6 +723,128 @@ const drawClassStats = (statsData: any[]) => {
           position: 'top',
           formatter: '{c}%'
         }
+      }
+    ]
+  })
+// 绘制堆叠柱状图
+if (document.querySelector('.stacked-bar-chart')) {
+    return;
+  }else{
+    
+     // 动态创建堆叠图容器
+  const stackedChartContainer = document.createElement('div');
+  stackedChartContainer.style.width = '100%';
+  stackedChartContainer.style.height = '350px';
+  stackedChartContainer.className = 'chart stacked-bar-chart';
+  classBarChartContainer.value?.parentElement?.appendChild(stackedChartContainer);
+
+  // 初始化堆叠柱状图
+  const stackedBarChart = echarts.init(stackedChartContainer);
+  stackedBarChart.setOption({
+  title: { 
+    text: '正确率区间分布（学生人数）',  
+    left: 'center',
+    top: 10,
+    textStyle: {
+      fontSize: 16,
+      fontWeight: 500
+    } 
+  },
+  tooltip: { 
+    trigger: 'axis', 
+    axisPointer: { type: 'shadow' },
+    formatter: '{b}<br/>{a0}: {c0}<br/>{a1}: {c1}<br/>{a2}: {c2}<br/>{a3}: {c3}<br/>{a4}: {c4}'
+  },
+  legend: { 
+    data: displayData[0].accuracyDistribution.map((d: any) => d.label),
+    bottom: 0, // 将图例放在底部
+    type: 'scroll' // 如果标签太长可以滚动
+  },
+  xAxis: { 
+    type: 'category', 
+    data: classNames,
+    axisLabel: {
+      interval: 0,
+      rotate: 30
+    }
+  },
+  yAxis: { 
+    type: 'value', 
+    name: '学生人数' 
+  },
+  series: generateStackedSeries(),
+  grid: { 
+    left: '3%', 
+    right: '4%', 
+    bottom: '20%', // 为图例留出空间
+    containLabel: true 
+  },
+  color: [ // 统一颜色主题
+    '#ff4444', // 60%以下
+    '#ff8c42', // 60%-70%
+    '#f6d55c', // 70%-80%
+    '#3caea3', // 80%-90%
+    '#2c75b3'  // 90%以上
+  ]
+});
+  }
+ 
+  // 添加错题比例环形图
+  if (document.querySelector('.wrong-rate-chart')) {
+    return;
+  }
+  const wrongRateChartContainer = document.createElement('div')
+  wrongRateChartContainer.style.width = '100%'
+  wrongRateChartContainer.style.height = '350px'
+  wrongRateChartContainer.className = 'chart wrong-rate-chart'
+  classBarChartContainer.value?.parentElement?.appendChild(wrongRateChartContainer)
+
+  const wrongRateChart = echarts.init(wrongRateChartContainer)
+  wrongRateChart.setOption({
+    title: {
+      text: '各班级错题比例',
+      left: 'center',
+      top: 10,
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 500
+      }
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c}%'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+      top: 'middle'
+    },
+    series: [
+      {
+        name: '错题比例',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}: {c}%'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 14,
+            fontWeight: 'bold'
+          }
+        },
+        data: classNames.map((name, index) => ({
+          name,
+          value: wrongRates[index]
+        }))
       }
     ]
   })
