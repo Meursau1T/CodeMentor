@@ -91,10 +91,9 @@ const handleLogin = async () => {
         }
         userStore.setUserInfo(adminInfo)
         Cookies.set('userInfo', JSON.stringify(adminInfo))
-        router.push('/teacher-dashboard')
-        // router.push('/admin/settings')
+        router.push('/admin/settings')
         return
-      }else if(studentId.value === 'szu_teacher' && password.value === 'password'){
+      }else if(studentId.value === 'teacher' && password.value === 'teacher'){
         const teacherInfo = {
           name: 'Teacher',
           id: 'teacher',

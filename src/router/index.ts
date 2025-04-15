@@ -86,9 +86,9 @@ const router = createRouter({
       ]
     },
     {
-      path: '/teacher-dashboard',
+      path: ROUTE_PATH.TEACHER_DASHBOARD,
       component: () => import('../views/teacher/TeacherDashboard.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true }
+      meta: { requiresAuth: true }
     },
     {
       path: '/problems',

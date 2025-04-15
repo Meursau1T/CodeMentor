@@ -6,6 +6,7 @@ export const ROUTE_NAME = {
   AIMENTOR: 'ai-mentor',
   LOGIN: 'login',
   TEACHER_DASHBOARD: 'teacher-dashboard',
+  ADMIN_SETTINGS: 'admin-settings',
 } as const;
 
 export const ROUTE_PATH = {
@@ -15,4 +16,6 @@ export const ROUTE_PATH = {
   CODING: '/coding',
   AIMENTOR: '/ai-mentor',
   LOGIN: '/login',
+  ADMIN_SETTINGS: '/admin/settings',
+  TEACHER_DASHBOARD: '/teacher-dashboard',
 }
