@@ -204,7 +204,7 @@ const fetchClassStudents = async (classId: number) => {
       students.value = mockStudents.map(student => ({
         name: student.name,
         studentId: student.id,
-        user_id: student.id,
+        user_id: student.sid,
         correct_rate: `${student.accuracy}%`,
         progress: `${student.progress}%`,
         solved_count: student.answerCount,
