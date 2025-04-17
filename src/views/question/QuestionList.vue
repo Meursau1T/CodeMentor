@@ -237,6 +237,9 @@ onMounted(() => {
     <div class="filters">
       <t-space direction="vertical" size="large">
         <t-space>
+          <span class="label">
+            难度:
+          </span>
           <t-select
             v-model="filterForm.difficulty"
             placeholder="选择难度"
@@ -244,6 +247,9 @@ onMounted(() => {
             @change="handleFilterChange"
             style="width: 200px"
           />
+          <span class="label">
+            知识点:
+          </span>
           <t-select
             v-model="filterForm.knowledgePointId"
             placeholder="选择知识点"
@@ -290,6 +296,10 @@ onMounted(() => {
 
 .filters {
   margin-bottom: 20px;
+}
+
+.label {
+  line-height: 32px;
 }
 
 :deep(.question-table tbody tr) {

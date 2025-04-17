@@ -48,7 +48,7 @@ const registerTeacher = async () => {
     })
     const data = await response.json()
     if (data.result) {
-      console.log('register', data.result);
+      showCreateTeacher.value = false;
     }
   } catch (error) {
     console.error('老师注册失败:', error)
