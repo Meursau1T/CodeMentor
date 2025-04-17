@@ -83,7 +83,7 @@ const handleLogin = async () => {
       const token = data.data.token
       Cookies.set('authToken', token)
       // 检查是否是管理员登录
-      if (studentId.value === 'admin' && password.value === 'szu_admin') {
+      if (data.data.username === 'admin' && data.data.role === 'ADMIN') {
         const adminInfo = {
           name: 'Administrator',
           id: 'admin',
@@ -93,7 +93,7 @@ const handleLogin = async () => {
         Cookies.set('userInfo', JSON.stringify(adminInfo))
         router.push('/admin/settings')
         return
-      }else if(studentId.value === 'teacher' && password.value === 'teacher'){
+      }else if(data.data.role === 'ADMIN'){
         const teacherInfo = {
           name: 'Teacher',
           id: 'teacher',

@@ -3,10 +3,16 @@ import { ref, onMounted } from 'vue';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { useAdminSettingsStore } from '@/stores/adminSettings';
 import { storeToRefs } from 'pinia';
+import Cookies from 'js-cookie'
 
 const adminStore = useAdminSettingsStore();
 const { settings } = storeToRefs(adminStore);
 const loading = ref(false);
+const teacherName = ref('');
+const teacherPassword = ref('');
+const teacherUserName = ref('');
+const errorMessage = ref('');
+const showCreateTeacher = ref(false);
 
 // 保存设置
 const saveSettings = async () => {
@@ -21,6 +27,34 @@ const saveSettings = async () => {
     loading.value = false;
   }
 };
+
+const createTeacher = () => {
+  showCreateTeacher.value = true;
+}
+
+const registerTeacher = async () => {
+  try {
+    const response = await fetch('http://47.119.38.174:8080/api/users/register_teacher/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Cookies.get('authToken')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: teacherName.value,
+        username: teacherUserName.value,
+        password: teacherPassword.value,
+      })
+    })
+    const data = await response.json()
+    if (data.result) {
+      console.log('register', data.result);
+    }
+  } catch (error) {
+    console.error('老师注册失败:', error)
+    errorMessage.value = '老师注册失败'
+  }
+}
 
 // 重置设置
 const resetSettings = () => {
@@ -115,6 +149,13 @@ onMounted(() => {
                 />
               </div>
             </t-form-item>
+            <t-form-item label="新增教师账号" class="form-item">
+              <div class="form-item-content">
+                <t-button theme="primary" @click="createTeacher">
+                  创建
+                </t-button>
+              </div>
+            </t-form-item>
             <t-form-item></t-form-item>
           </t-form>
         </div>
@@ -132,6 +173,42 @@ onMounted(() => {
       </t-loading>
     </t-card>
   </div>
+  <t-dialog v-model:visible="showCreateTeacher" header="新增账号" theme="default" :style="{ minHeight: '400px' }">
+    <div>
+      <div class="teacher-input">
+        <t-input
+          v-model="teacherName"
+          placeholder="请输入昵称"
+          size="large"
+        />
+      </div>
+      <div class="teacher-input">
+        <t-input
+          v-model="teacherUserName"
+          placeholder="请输入用户名"
+          size="large"
+        />
+      </div>
+      <div class="teacher-input">
+        <t-input
+          v-model="teacherPassword"
+          type="password"
+          placeholder="请输入密码"
+          size="large"
+        />
+      </div>
+      <p class="error-message" v-if="errorMessage">{{ errorMessage }}</p>
+    </div>
+    <template #footer>
+      <div class="button-section">
+        <t-space>
+          <t-button theme="primary" @click="registerTeacher" :loading="loading">
+            创建账号
+          </t-button>
+        </t-space>
+      </div>
+    </template>
+  </t-dialog>
 </template>
 
 <style scoped>
@@ -210,5 +287,9 @@ onMounted(() => {
 :deep(.t-form__label) {
   margin-right: 16px;
   flex-shrink: 0;
+}
+
+.teacher-input {
+  margin-bottom: 8px;
 }
 </style>
